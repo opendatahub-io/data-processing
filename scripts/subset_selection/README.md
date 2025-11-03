@@ -236,3 +236,11 @@ ls scripts/subset_selection/data/output/
   - Larger epsilon values = faster but potentially lower quality
   - More folds = better GPU utilization but more overhead
 
+## Acknowledgments
+
+This subset selection implementation is based on the **DataCurate4LLMs** project by Krishna Teja KK:
+
+- **Repository**: https://github.com/krishnatejakk/DataCurate4LLMs
+- **Author**: [@krishnatejakk](https://github.com/krishnatejakk)
+
+We've adapted their subset selection approach for integration with the Open Data Hub ecosystem, maintaining compatibility with the original Apache-2.0 license. Special thanks to Krishna Teja KK for making this valuable work open source.
