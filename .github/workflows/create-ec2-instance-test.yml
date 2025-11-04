@@ -1,0 +1,176 @@
+name: Test Create EC2 Instance
+
+on:
+  # Note: Remove "push:" before merge
+  workflow_dispatch:
+  push:
+
+env:
+  # All vars except "INSTANCE_TYPE" will be converted to repo-level vars.
+  # This is just for testing...
+  INSTANCE_TYPE: "g6e.xlarge"
+  DATA_PROCESSING_ROLE: "data-processing-ec2-github-runner-role" #Instance profile is the same name
+  AMI_ID: "ami-0187589f1bb84edbf"
+  SUBNET_ID: "subnet-0c2ce22cb1f685511" #us-east-2a
+  SG_ID: "sg-07c80f095e1317c9f" #us-east-2
+
+# We don't need anything other than Bash for our shell..
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  launch-ec2-runner:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # This is required for OIDC
+      contents: read
+      actions: write
+    outputs:
+      instance-id: ${{ steps.launch_ec2.outputs.instance_id }}
+      runner-label: ${{ steps.launch_ec2.outputs.runner_label }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@00943011d9042930efac3dcd3a170e4273319bc8
+        with:
+          role-to-assume: "arn:aws:iam::851725220677:role/${{ env.DATA_PROCESSING_ROLE }}"
+          aws-region: us-east-2
+          role-session-name: odh-data-processing  # For tracking in CloudTrail
+
+      - name: Get GitHub Runner Registration Token
+        id: get_token
+        # Use the workflow's built-in GITHUB_TOKEN. More secure than a GitHub PAT
+        run: |
+          API_URL="https://api.github.com/repos/${{ github.repository }}/actions/runners/registration-token"
+          echo "Requesting token from: $API_URL"
+
+          # 1. Get the raw API response and store it
+          API_RESPONSE=$(curl -sS -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "$API_URL")
+          
+          # 2. Print the raw response for debugging
+          echo "RAW API RESPONSE: $API_RESPONSE"
+
+          # 3. Process the response
+          TOKEN=$(echo "$API_RESPONSE" | jq -r .token)
+          
+          echo "TOKEN: $TOKEN"
+          if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
+            echo "::error::Failed to get runner registration token. See RAW API RESPONSE above."
+            exit 1
+          fi
+          
+          echo "Successfully got a token."
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> $GITHUB_OUTPUT
+
+      # Avoid using the "machulav/ec2-github-runner@v2" GH action because it requires too many org-level perms
+      - name: Launch EC2 Instance with User Data
+        id: launch_ec2
+        run: |
+          # Unique label so no other GH workflow grabs it by mistake.
+          RUNNER_LABEL="dp-gha-runner-${{ github.run_id }}"
+
+          USER_DATA=$(cat <<EOF
+          #!/bin/bash -ex
+          exec > /var/log/user-data.log 2>&1
+
+          echo "--- Starting User-Data Script ---"
+
+          echo "Installing dependencies: curl, tar, libicu..."
+          dnf -y install curl tar libicu
+          echo "Dependencies installed."
+
+          # 2. Create and chown the directory for the 'centos' user
+          echo "Creating /actions-runner and setting owner to 'centos'"
+          mkdir /actions-runner
+          chown ec2-user:ec2-user /actions-runner
+          echo "Directory prepared."
+
+          # 3. Switch to the 'ec2-user' user to run the rest of the script
+          echo "Switching to 'ec2-user' user to configure runner..."
+          sudo -u ec2-user -i bash -c '
+            echo "--- Running as ec2-user user ---"
+            cd /actions-runner
+
+            echo "Downloading runner..."
+            curl -o actions-runner-linux-x64-2.317.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.317.0/actions-runner-linux-x64-2.317.0.tar.gz
+
+            echo "Extracting runner..."
+            tar xzf ./actions-runner-linux-x64-2.317.0.tar.gz
+
+            echo "Configuring runner..."
+            ./config.sh --url https://github.com/${{ github.repository }} \
+              --token ${{ steps.get_token.outputs.token }} \
+              --unattended \
+              --name "ci-runner-for-${{ github.run_id }}" \
+              --labels "$RUNNER_LABEL"
+
+            echo "Installing and starting service..."
+            # Note: This installer will correctly use 'sudo' internally
+            # to set up the systemd service.
+            ./svc.sh install
+            ./svc.sh start
+
+            echo "--- ec2-user user script finished ---"
+          '
+          echo "--- User-Data Script Finished ---"
+          EOF
+          )
+
+          echo "Preparing to launch instance w/ CLI...."
+
+          # Launch instance w/ aws cli.
+          INSTANCE_ID=$(aws ec2 run-instances \
+            --image-id ${{ env.AMI_ID }} \
+            --instance-type ${{ env.INSTANCE_TYPE }} \
+            --subnet-id ${{ env.SUBNET_ID }} \
+            --security-group-ids ${{ env.SG_ID }} \
+            --iam-instance-profile Name="${{ env.DATA_PROCESSING_ROLE }}" \
+            --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=dp-gha-runner-${{ github.run_id }}}]" \
+            --user-data "$USER_DATA" \
+            --query "Instances[0].InstanceId" \
+            --key-name github-runner-debug-key \
+            --output text)
+            
+          echo "Successfully launched instance '$INSTANCE_ID'"
+          echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
+          echo "runner_label=$RUNNER_LABEL" >> $GITHUB_OUTPUT
+
+  # Run some workload on the EC2 runner we just launched
+  run-some-workload:
+    runs-on: ${{ needs.launch-ec2-runner.outputs.runner-label }}
+    needs: launch-ec2-runner
+    steps:
+      - name: Do data-processing stuff
+        run: |
+          echo "hello. i'm running from inside of EC2 instance ${{ needs.launch-ec2-runner.outputs.instance-id }}"
+          # Print the hostname to validate we're actually running from inside an EC2 instnace
+          hostname
+
+  stop-ec2-runner:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # This is required for OIDC
+      contents: read
+    if: always() # set to "always()" so that we kill the runner whether the job passes or fails
+    needs: [launch-ec2-runner, run-some-workload]
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@00943011d9042930efac3dcd3a170e4273319bc8
+        with:
+          role-to-assume: "arn:aws:iam::851725220677:role/${{ env.DATA_PROCESSING_ROLE }}"
+          aws-region: us-east-2
+          role-session-name: odh-data-processing  # For tracking in CloudTrail
+          
+      - name: Terminate EC2 Instance
+        run: |
+          INSTANCE_ID="${{ needs.launch-ec2-runner.outputs.instance-id }}"
+          echo "Terminating instance '$INSTANCE_ID'..."
+          aws ec2 terminate-instances --instance-ids $INSTANCE_ID
