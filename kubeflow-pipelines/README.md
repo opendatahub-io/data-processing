@@ -21,7 +21,7 @@ Two KFP pipelines are included:
 - Secret-based configuration:
   - Remote VLM API configuration via a single mounted Kubernetes Secret
   - S3 endpoint and credentials via a single mounted Kubernetes Secret
-- Tunable performance and quality: threads, timeouts, OCR forcing, table mode, PDF backends, enrichments
+- Tunable performance and quality: threads, timeouts, OCR forcing, table mode, PDF backends, enrichments, accelerator devices
 - Works on OpenShift AI/Kubeflow Pipelines
 
 ## 📦 File Structure
@@ -93,8 +93,8 @@ By default, both pipelines will consume documents stored in an HTTP/S source. To
 
 #### 1) Defaults (Docling with default parameters)
 
-- Standard pipeline defaults include `pdf_backend=dlparse_v4`, `image_export_mode=embedded`, `table_mode=accurate`, `num_threads=4`, `timeout_per_document=300`, `ocr=True`, `force_ocr=False`, `ocr_engine=tesseract`.
-- VLM pipeline defaults include `num_threads=4`, `timeout_per_document=300`, `image_export_mode=embedded`, and `remote_model_enabled=False`.
+- Standard pipeline defaults include `pdf_backend=dlparse_v4`, `image_export_mode=embedded`, `table_mode=accurate`, `num_threads=4`, `timeout_per_document=300`, `ocr=True`, `force_ocr=False`, `ocr_engine=tesseract`, `accelerator_device=auto`.
+- VLM pipeline defaults include `num_threads=4`, `timeout_per_document=300`, `image_export_mode=embedded`, `remote_model_enabled=False`, and `accelerator_device=auto`.
 
 #### 2) Minor tweaks: image and table modes
 
@@ -157,6 +157,17 @@ If you'd like to consume documents stored in an S3-compatible object storage rat
 
 Toggle enrichments via boolean parameters:
 - `docling_enrich_code`, `docling_enrich_formula`, `docling_enrich_picture_classes`, `docling_enrich_picture_description`.
+
+#### 7) Configuring accelerator device
+
+Both pipelines support configuring the accelerator device used for document processing:
+- `docling_accelerator_device`: Device to use for acceleration. Supported values:
+  - `auto` (default): Automatically detect and use the best available device
+  - `cpu`: Force CPU-only processing
+  - `cuda` or `gpu`: Use GPU with CUDA
+  - `mps`: Use Apple Metal Performance Shaders (for Mac)
+- Example: Set `docling_accelerator_device=cpu` for CPU-only processing, or `docling_accelerator_device=gpu` to leverage GPU acceleration for faster conversions.
+- The parameter is case-insensitive and supports friendly aliases (`gpu` maps to `cuda`).
 
 ## 🔧 Advanced customizations
 
