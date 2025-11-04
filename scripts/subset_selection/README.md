@@ -209,7 +209,7 @@ Using your data file:
 
 ```bash
 # Navigate to project root
-cd /Users/roburishabh/Github/odh-data-processing
+cd data-processing
 
 # Run subset selection - Select 10% and 50% subsets
 python -m scripts.subset_selection.cli \

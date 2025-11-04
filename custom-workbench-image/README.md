@@ -30,15 +30,15 @@ The variable `NOTEBOOK_ROOT_DIR` is used by [start-notebook.sh](https://github.c
 
 Since `/opt/app-root/src` is mounted by the notebook controller upon the start of a workbench image and any content in that directory [will be cleared](https://github.com/opendatahub-io/notebooks/tree/main/examples#opendatahub-dashboard) a script is required to move the notebooks.
 
-An example script that accomplishes this is in `odh-dp-entrypoint.sh` and below:
+An example script that accomplishes this is in `dp-entrypoint.sh` and below:
 
 ```bash
 #!/bin/bash
 set -e
 
 # Define source and destination paths
-SRC_DIR="/opt/app-root/tmp/odh-data-processing"
-DEST_DIR="/opt/app-root/src/odh-data-processing"
+SRC_DIR="/opt/app-root/tmp/data-processing"
+DEST_DIR="/opt/app-root/src/data-processing"
 
 # Copy the notebooks to the user's persistent home directory if they don't exist
 # This ensures the notebooks are present on the first and subsequent launch
@@ -62,19 +62,19 @@ This script is used within this snippet of a `Containerfile` to set a repository
 USER 1001
 
 # Clone the repository to a temporary, non-mounted directory
-RUN git clone https://github.com/opendatahub-io/odh-data-processing.git /opt/app-root/tmp/odh-data-processing
+RUN git clone https://github.com/opendatahub-io/data-processing.git /opt/app-root/tmp/data-processing
 
 # Copy a custom entrypoint script into the container
-COPY --chown=1001:1 odh-dp-entrypoint.sh /opt/app-root/bin/odh-dp-entrypoint.sh
+COPY --chown=1001:1 dp-entrypoint.sh /opt/app-root/bin/dp-entrypoint.sh
 
 # Check to make sure entry point script can be executed by random high number user
-RUN ls -l /opt/app-root/bin/odh-dp-entrypoint.sh
+RUN ls -l /opt/app-root/bin/dp-entrypoint.sh
 
 # Set the NOTEBOOK_ROOT_DIR to the final destination in the user's home directory
-ENV NOTEBOOK_ROOT_DIR="/opt/app-root/src/odh-data-processing/notebooks/use-cases"
+ENV NOTEBOOK_ROOT_DIR="/opt/app-root/src/data-processing/notebooks/use-cases"
 
 # Set the custom script as the new entrypoint
-ENTRYPOINT ["/opt/app-root/bin/odh-dp-entrypoint.sh"]
+ENTRYPOINT ["/opt/app-root/bin/dp-entrypoint.sh"]
 ```
 
 ## Building Tesseract OCR Dependencies
@@ -133,7 +133,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
 
 ## Building and Pushing the Image
 
-An example `Containerfile`, and shell script (`odh-dp-entrypoint.sh`) that copies notebooks at run time are included in this directory.
+An example `Containerfile`, and shell script (`dp-entrypoint.sh`) that copies notebooks at run time are included in this directory.
 
 The shell script must have execute permission set at the user and group level before it is copied into the container at build time so that it can be executed by the container runtime.
 
@@ -142,7 +142,7 @@ If tesseract OCR and it's dependencies are being built using `podman`, the podma
 Below are commands that can be run from this directory to build a custom workbench container image.
 
 ```
-chmod ug+x odh-dp-entrypoint.sh
+chmod ug+x dp-entrypoint.sh
 podman machine stop
 podman machine set --cpus 4 --memory 4096
 podman machine start
