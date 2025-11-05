@@ -1,4 +1,4 @@
-.PHONY: format-python format-notebook format-python-check format-notebooks-check
+.PHONY: format-python format-notebook format-python-check format-notebooks-check test-notebook-parameters
 
 USE_CASES := $(wildcard notebooks/use-cases/*.ipynb)
 TUTORIALS := $(wildcard notebooks/tutorials/*.ipynb)
@@ -24,3 +24,8 @@ format-notebooks-check:
 format-python-check:
 	ruff format --check $(ALL_PYTHON_FILES)
 	@echo "ruff format check passed :)"
+
+test-notebook-parameters:
+	@echo "Running notebook parameters validation..."
+	pytest tests/test_notebook_parameters.py -v
+	@echo "Notebook parameters test passed :)"

@@ -1,2 +1,5 @@
 ruff
 nbstripout
+pytest
+nbformat
+papermill
