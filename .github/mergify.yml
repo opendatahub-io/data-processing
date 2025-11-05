@@ -53,3 +53,28 @@ pull_request_rules:
           @{{ author }} please rebase your branch.
           
           [Syncing a Fork Guide](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork)
+  # BACKPORT RULES 
+  - name: Create backport PRs for labeled changes
+    conditions:
+      - merged
+      - base=main
+      - label~=^backport/
+    actions:
+      backport:
+        branches:
+          - "{{ label | select('match', '^backport/(.+)$') | map('regex_replace', '^backport/(.+)$', '\\1') | first }}"
+        title: "[Backport {{ destination_branch }}] {{ title }}"
+        body: |
+          🔄 **Automatic backport of #{{ number }}**
+          
+          **Original PR:** {{ title }}
+          **Author:** @{{ author }}
+          **Target Branch:** `{{ destination_branch }}`
+          
+          **Note:** If this PR has conflicts, resolve them manually and request review.
+          
+          ---
+          
+          {{ body }}
+        assignees:
+          - "{{ author }}"
