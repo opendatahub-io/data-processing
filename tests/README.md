@@ -1,6 +1,6 @@
 # Tests
 
-This directory contains automated tests for the ODH Data Processing project.
+This directory contains automated tests for the Data Processing repository.
 
 ## Overview
 
