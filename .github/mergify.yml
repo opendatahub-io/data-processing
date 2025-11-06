@@ -5,7 +5,7 @@ pull_request_rules:
       - "#approved-reviews-by>=1"
       - "#changes-requested-reviews-by=0"
       - "#review-requested=0"
-      - "check-failure=~^$"
+      - "check-success-or-neutral~=.*"
       - "-draft"
       - "base=main"
       - "label!=do-not-merge"
@@ -48,18 +48,18 @@ pull_request_rules:
     conditions:
       - merged
       - base=main
-      - label~=^backport/
+      - label=backport
     actions:
       backport:
         branches:
-          - "{{ labels | select('match', '^backport/(.+)$') | map('regex_replace', '^backport/(.+)$', '\\1') | first }}"
-        title: "[Backport {{ destination_branch }}] {{ title }}"
+          - stable-3.0
+        title: "[Backport stable-3.0] {{ title }}"
         body: |
           🔄 **Automatic backport of #{{ number }}**
           
           **Original PR:** {{ title }}
           **Author:** @{{ author }}
-          **Target Branch:** `{{ destination_branch }}`
+          **Target Branch:** `stable-3.0`
           
           **Note:** If this PR has conflicts, resolve them manually and request review.
           
