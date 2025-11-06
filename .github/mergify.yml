@@ -1,26 +1,15 @@
-# .mergify.yml defines the rules for merging pull requests.
-
 pull_request_rules:
   # PRIMARY MERGE RULE: Single comprehensive rule for auto-merge
   - name: Auto-merge when ALL conditions met
     conditions:
-      # ALL assigned reviewers must approve
-      - "#approved-reviews-by>=1"              # At least one approval
-      - "#changes-requested-reviews-by=0"      # No outstanding change requests
-      - "#review-requested=0"                  # No pending review requests
-      
-      # Add flexible check for all workflows:
-      - "check-failure=~^$"             # No failing checks allowed   
-
-      # PR must be ready for merge
-      - "-draft"                               # Not a draft
-      - "base=main"                           # Targeting main branch
-      - "label!=do-not-merge"                 # No blocking labels
-      - "label!=breaking-change"              # Important - requires special handling
-      
-      # Technical requirements
-      - "-conflict"                           # No merge conflicts
-
+      - "#approved-reviews-by>=1"
+      - "#changes-requested-reviews-by=0"
+      - "#review-requested=0"
+      - "-draft"
+      - "base=main"
+      - "label!=do-not-merge"
+      - "label!=breaking-change"
+      - "-conflict"
     actions:
       merge:
         method: squash
@@ -53,3 +42,28 @@ pull_request_rules:
           @{{ author }} please rebase your branch.
           
           [Syncing a Fork Guide](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork)
+  # BACKPORT RULES 
+  - name: Create backport PRs for labeled changes
+    conditions:
+      - merged
+      - base=main
+      - label=backport
+    actions:
+      backport:
+        branches:
+          - stable-3.0
+        title: "[Backport stable-3.0] {{ title }}"
+        body: |
+          🔄 **Automatic backport of #{{ number }}**
+          
+          **Original PR:** {{ title }}
+          **Author:** @{{ author }}
+          **Target Branch:** `stable-3.0`
+          
+          **Note:** If this PR has conflicts, resolve them manually and request review.
+          
+          ---
+          
+          {{ body }}
+        assignees:
+          - "{{ author }}"
