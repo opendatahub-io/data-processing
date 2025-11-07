@@ -62,7 +62,7 @@ This script is used within this snippet of a `Containerfile` to set a repository
 USER 1001
 
 # Clone the repository to a temporary, non-mounted directory
-RUN git clone https://github.com/opendatahub-io/data-processing.git /opt/app-root/tmp/data-processing
+RUN git clone https://github.com/opendatahub-io/data-processing.git -b stable-3.0 /opt/app-root/tmp/data-processing
 
 # Copy a custom entrypoint script into the container
 COPY --chown=1001:1 dp-entrypoint.sh /opt/app-root/bin/dp-entrypoint.sh
