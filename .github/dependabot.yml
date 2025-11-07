@@ -1,0 +1,23 @@
+# GitHub Dependabot configuration
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+    commit-message:
+      prefix: chore(github-deps)
+      
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+    allow:
+      - dependency-type: "direct"         # Only direct dependencies
+    ignore:
+      - dependency-name: "*"              # All dependencies
+        update-types: ["version-update:semver-major"]  # Ignore major updates
+    commit-message:
+      prefix: chore(python-deps)
