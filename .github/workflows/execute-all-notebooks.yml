@@ -1,0 +1,96 @@
+name: Execute All Notebooks
+
+on:
+  workflow_dispatch:
+    inputs:
+      # FUTURE USE:
+      # Maintainers can provide a PR number or existing upstream branch name to run this
+      # job against. If no PR number or branch name is provided, this job will run against
+      # content in the "main" branch instead.
+      pr_or_branch:
+        description: "Pull request number or branch name"
+        required: true
+        default: "main"
+
+env:
+  INSTANCE_TYPE: "g6e.xlarge"
+
+# We don't need anything other than Bash for our shell..
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  launch-ec2-runner:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # This is required for OIDC (AWS auth)
+      contents: read
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@00943011d9042930efac3dcd3a170e4273319bc8 # v5.1.0
+        with:
+          role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.DATA_PROCESSING_IAM_ROLE }}"
+          aws-region: us-east-2
+          role-session-name: odh-data-processing  # For tracking in CloudTrail
+
+      - name: Start Data Processing EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v4.3.2
+        with:
+          mode: start
+          github-token: "${{ secrets.DATA_PROCESSING_GH_PERSONAL_ACCESS_TOKEN }}"
+          ec2-image-id: "${{ vars.US_EAST_2_AMI_ID }}"
+          ec2-instance-type: "${{ env.INSTANCE_TYPE }}"
+          subnet-id: "${{ vars.US_EAST_2A_SUBNET_ID }}"
+          security-group-id: "${{ vars.US_EAST_2_SG_ID }}"
+          iam-role-name: "${{ vars.DATA_PROCESSING_IAM_ROLE }}"
+          aws-resource-tags: >
+            [
+              {"Key": "Name", "Value": "data-processing-gh-runner"},
+              {"Key": "GitHubRepository", "Value": "${{ github.repository }}"},
+              {"Key": "GitHubRef", "Value": "${{ github.ref }}"},
+              {"Key": "GitHubPR", "Value": "${{ github.event.number }}"}
+            ]
+
+  execute-all-notebooks:
+    needs:
+      - launch-ec2-runner
+    runs-on: ${{ needs.launch-ec2-runner.outputs.label }}
+
+    steps:
+      - name: Setup Environment
+        run: |
+          echo "hello. i'm running from inside of EC2 instance ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
+
+  stop-ec2-runner:
+    permissions:
+      id-token: write # This is required for OIDC (AWS auth)
+      contents: read
+    needs:
+      - launch-ec2-runner
+      - execute-all-notebooks
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@00943011d9042930efac3dcd3a170e4273319bc8 # v5.1.0
+        with:
+          role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.DATA_PROCESSING_IAM_ROLE }}"
+          aws-region: us-east-2
+          role-session-name: odh-data-processing  # For tracking in CloudTrail
+
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v4.3.2
+        with:
+          mode: stop
+          github-token: "${{ secrets.DATA_PROCESSING_GH_PERSONAL_ACCESS_TOKEN }}"
+          label: ${{ needs.launch-ec2-runner.outputs.label }}
+          ec2-instance-id: ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}
