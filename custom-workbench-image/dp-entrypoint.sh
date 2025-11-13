@@ -2,8 +2,8 @@
 set -e
 
 # Define source and destination paths
-SRC_DIR="/opt/app-root/tmp/odh-data-processing"
-DEST_DIR="/opt/app-root/src/odh-data-processing"
+SRC_DIR="/opt/app-root/tmp/data-processing"
+DEST_DIR="/opt/app-root/src/data-processing"
 
 # Copy the notebooks to the user's persistent home directory if they don't exist
 # This ensures the notebooks are present on the first and subsequent launches
