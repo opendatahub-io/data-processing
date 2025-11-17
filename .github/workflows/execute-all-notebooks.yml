@@ -78,12 +78,6 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Set up Python via dnf for centoa
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install Dependencies
         run: |
           sudo dnf install -y python3.11 python3.11-devel
           # ensure pip works for python3.11
