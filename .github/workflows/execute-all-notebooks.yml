@@ -11,7 +11,12 @@ on:
         description: "Pull request number or branch name"
         required: true
         default: "main"
-
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "notebooks/**/*.ipynb"
+      - ".github/workflows/execute-all-notebooks.yml"
+  push:
 env:
   INSTANCE_TYPE: "g6e.xlarge"
 
@@ -69,6 +74,26 @@ jobs:
       - name: Setup Environment
         run: |
           echo "hello. i'm running from inside of EC2 instance ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
+
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements-dev.txt
+          pip install papermill ipykernel jupyter
+          ipython kernel install --name "python3" --user
+
+      - name: Execute All Notebooks via Pytest
+        run: |
+          cd tests
+          python -m pytest test_notebook_execution.py -v --tb=short
+
 
   stop-ec2-runner:
     permissions:
