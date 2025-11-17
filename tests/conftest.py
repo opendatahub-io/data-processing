@@ -10,7 +10,13 @@ import pytest
 
 def get_notebook_files():
     """Discover all notebook files in the notebooks directory."""
-    notebook_pattern = "notebooks/**/*.ipynb"
+    # Get the directory where this conftest.py file is located
+    test_dir = Path(__file__).parent
+    # Go up one level to the project root
+    project_root = test_dir.parent
+    
+    # Build the notebook pattern from project root
+    notebook_pattern = str(project_root / "notebooks" / "**" / "*.ipynb")
     notebook_files = glob.glob(notebook_pattern, recursive=True)
     
     # Convert to Path objects and filter out any non-existent files
