@@ -95,7 +95,7 @@ jobs:
       - name: Execute All Notebooks via Pytest
         run: |
           cd tests
-          python -m pytest test_notebook_execution.py -v --tb=short
+          /usr/bin/python3.11 -m pytest test_notebook_execution.py -v --tb=short
 
 
   stop-ec2-runner:
