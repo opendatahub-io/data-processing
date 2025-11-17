@@ -16,7 +16,7 @@ on:
     paths:
       - "notebooks/**/*.ipynb"
       - ".github/workflows/execute-all-notebooks.yml"
-
+  push:
 env:
   INSTANCE_TYPE: "g6e.xlarge"
 
