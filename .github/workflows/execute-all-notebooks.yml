@@ -76,11 +76,22 @@ jobs:
           echo "hello. i'm running from inside of EC2 instance ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
 
       - uses: actions/checkout@v5
+      - name: Debug runner OS/arch
+        run: |
+          echo "---- uname -a ----"
+          uname -a || true
+          echo "---- uname -m ----"
+          uname -m || true
+          echo "---- /etc/os-release ----"
+          cat /etc/os-release || true
+          echo "---- preinstalled python info ----"
+          python3 -V || true
+          which python3 || true
 
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: "3.12"
           cache: pip
 
       - name: Install Dependencies
