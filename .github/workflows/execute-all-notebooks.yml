@@ -11,6 +11,11 @@ on:
         description: "Pull request number or branch name"
         required: true
         default: "main"
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "notebooks/**/*.ipynb"
+      - ".github/workflows/execute-all-notebooks.yml"
 
 env:
   INSTANCE_TYPE: "g6e.xlarge"
