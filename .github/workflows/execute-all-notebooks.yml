@@ -76,19 +76,8 @@ jobs:
           echo "hello. i'm running from inside of EC2 instance ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
 
       - uses: actions/checkout@v5
-      - name: Debug runner OS/arch
-        run: |
-          echo "---- uname -a ----"
-          uname -a || true
-          echo "---- uname -m ----"
-          uname -m || true
-          echo "---- /etc/os-release ----"
-          cat /etc/os-release || true
-          echo "---- preinstalled python info ----"
-          python3 -V || true
-          which python3 || true
 
-      - name: Set up Python
+      - name: Set up Python via dnf for centoa
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -96,9 +85,18 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install -r requirements-dev.txt
-          pip install papermill ipykernel jupyter
-          ipython kernel install --name "python3" --user
+          sudo dnf install -y python3.11 python3.11-devel
+          # ensure pip works for python3.11
+          sudo alternatives --set python3 /usr/bin/python3.11 || true
+          python3 -V
+          python3 -m pip install --upgrade pip
+          
+      - name: Install Dependencies
+        run: |
+          # use python3 (now pointing to python3.11) to install dependencies
+          python3 -m pip install -r requirements-dev.txt
+          python3 -m pip install papermill ipykernel jupyter
+          python3 -m ipykernel install --name "python3" --user
 
       - name: Execute All Notebooks via Pytest
         run: |
