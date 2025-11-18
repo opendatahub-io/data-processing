@@ -18,13 +18,11 @@ from conftest import get_notebook_files
 def get_test_parameters():
     """Get default test parameters for notebook execution."""
     return {
-        "files": [],  # Empty files list for basic testing
-        "test_mode": True,
-        "quick_run": True,
+        "files": [],  # specify files to use for the notebook
     }
 
 
-def execute_single_notebook(notebook_path: Path, timeout: int = 300) -> bool:
+def execute_single_notebook(notebook_path: Path) -> bool:
     """
     Execute a single notebook with papermill.
     
@@ -39,12 +37,14 @@ def execute_single_notebook(notebook_path: Path, timeout: int = 300) -> bool:
         output_path = Path(tmp_file.name)
     
     try:
+        test_params = get_test_parameters()
+        # Remove 'files' key if it's empty (let notebook use its own files)
+        if 'files' in test_params and not test_params['files']:
+            test_params = {k: v for k, v in test_params.items() if k != 'files'}
         pm.execute_notebook(
             input_path=str(notebook_path),
             output_path=str(output_path),
-            parameters=get_test_parameters(),
-            timeout=timeout,
-            kernel_name="python3"
+            parameters=test_params
         )
         return True
     except Exception as e:
@@ -54,7 +54,8 @@ def execute_single_notebook(notebook_path: Path, timeout: int = 300) -> bool:
             output_path.unlink()
 
 
-@pytest.mark.parametrize("notebook_path", get_notebook_files())
+@pytest.mark.parametrize("notebook_path", get_notebook_files(), 
+                        ids=lambda path: str(path)) 
 def test_notebook_executes_without_error(notebook_path):
     """Test that each notebook executes without errors."""
     
