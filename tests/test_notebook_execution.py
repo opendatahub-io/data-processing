@@ -64,7 +64,7 @@ def test_notebook_executes_without_error(notebook_path):
         pytest.skip(f"Skipping backup/checkpoint file: {notebook_path}")
     
     # Execute the notebook
-    success = execute_single_notebook(notebook_path, timeout=300)
+    success = execute_single_notebook(notebook_path)
     assert success, f"Failed to execute notebook: {notebook_path}"
 
 
