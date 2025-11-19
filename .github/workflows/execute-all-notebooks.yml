@@ -92,15 +92,19 @@ jobs:
           /usr/bin/python3.11 -m pip install papermill ipykernel jupyter
           /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
 
-      - name: Install Missing Notebook Dependencies
-        run: |
-          /usr/bin/python3.11 -m pip uninstall -y torch torchvision torchaudio 
-          /usr/bin/python3.11 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-          /usr/bin/python3.11 -m pip install 'docling-core[chunking]' --no-deps
-          /usr/bin/python3.11 -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
-          /usr/bin/python3.11 -m pip install datasets pymilvus[milvus-lite] h5py  transformers accelerate tokenizers
-          /usr/bin/python3.11 -m pip install docling
-
+          - name: Install Missing Notebook Dependencies
+          run: |
+            # Uninstall and install CPU-only PyTorch
+            /usr/bin/python3.11 -m pip uninstall -y torch torchvision torchaudio 
+            /usr/bin/python3.11 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+            
+            # Install packages WITHOUT letting them override PyTorch
+            /usr/bin/python3.11 -m pip install datasets pymilvus h5py --no-deps
+            /usr/bin/python3.11 -m pip install transformers accelerate tokenizers --no-deps
+            /usr/bin/python3.11 -m pip install 'docling-core[chunking]' docling --no-deps
+            
+            # Verify CPU-only installation
+            /usr/bin/python3.11 -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
       - name: Execute All Notebooks via Pytest
         run: |
           export PYTHONPATH="$(pwd):$PYTHONPATH"
