@@ -92,16 +92,28 @@ jobs:
           /usr/bin/python3.11 -m pip install papermill ipykernel jupyter
           /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
 
-      - name: Install Missing Notebook Dependencies
+      - name: Install Missing Notebook Dependencies  # ← Replace this entire section
         run: |
-            /usr/bin/python3.11 -m pip uninstall -y torch torchvision torchaudio 
-            /usr/bin/python3.11 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+            # Create comprehensive requirements file
+            cat > notebook-requirements.txt << 'EOF'
+            torch==2.1.0+cpu
+            torchvision==0.16.0+cpu 
+            torchaudio==2.1.0+cpu
+            --find-links https://download.pytorch.org/whl/cpu
+            datasets==2.14.0
+            pyarrow==13.0.0
+            h5py==3.9.0
+            transformers==4.33.0
+            sentence-transformers==2.2.2
+            accelerate==0.22.0
+            tokenizers==0.13.3
+            pymilvus==2.3.0
+            docling-core[chunking]==1.0.0
+            docling==1.5.0
+            EOF
             
-            
-            /usr/bin/python3.11 -m pip install datasets pymilvus h5py --no-deps
-            /usr/bin/python3.11 -m pip install transformers accelerate tokenizers --no-deps
-            /usr/bin/python3.11 -m pip install 'docling-core[chunking]' docling --no-deps
-            
+            # Install everything at once to avoid conflicts
+            /usr/bin/python3.11 -m pip install -r notebook-requirements.txt
             /usr/bin/python3.11 -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
       - name: Execute All Notebooks via Pytest
         run: |
