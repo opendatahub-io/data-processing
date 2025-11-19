@@ -16,7 +16,7 @@ on:
     paths:
       - "notebooks/**/*.ipynb"
       - ".github/workflows/execute-all-notebooks.yml"
-  push:
+
 env:
   INSTANCE_TYPE: "g6e.xlarge"
 
@@ -91,31 +91,23 @@ jobs:
           /usr/bin/python3.11 -m pip install -r requirements-dev.txt
           /usr/bin/python3.11 -m pip install papermill ipykernel jupyter
           /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
-      
+
       - name: Install Missing Notebook Dependencies
         run: |
-          /usr/bin/python3.11 -m pip install 'docling-core[chunking]' docling torch
-
-      - name: Setup CUDA Libraries
-        run: |
-             # Install NVIDIA repository first
-              sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo
-              sudo dnf clean all
-              
-              #  Install available CUDA 10.2 packages
-              sudo dnf install -y cuda-cusparse-10-2-10.2.89-1.x86_64
-              
-              # Verify installation
-              ls -la /usr/local/cuda*/lib64/libcusparse.so*
+          /usr/bin/python3.11 -m pip install 'docling-core[chunking]' docling
+          /usr/bin/python3.11 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+          /usr/bin/python3.11 -c "import torch; print(f'PyTorch CUDA available: {torch.cuda.is_available()}')"
 
       - name: Execute All Notebooks via Pytest
         run: |
           export PYTHONPATH="$(pwd):$PYTHONPATH"
-          # Set paths for CUDA 10.2
-          export CUDA_HOME=/usr/local/cuda-10.2
-          export LD_LIBRARY_PATH=/usr/local/cuda-10.2/lib64:$LD_LIBRARY_PATH
           cd tests
           /usr/bin/python3.11 -m pytest test_notebook_execution.py -v --tb=short
+        env: 
+          CUDA_VISIBLE_DEVICES: ""
+          OMP_NUM_THREADS: "4"
+          MKL_NUM_THREADS: "4"
+          TORCH_USE_CUDA_DSA: "0"
 
 
   stop-ec2-runner:
