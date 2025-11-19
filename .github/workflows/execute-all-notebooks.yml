@@ -94,9 +94,10 @@ jobs:
 
       - name: Install Missing Notebook Dependencies
         run: |
-          /usr/bin/python3.11 -m pip install 'docling-core[chunking]' docling
+          /usr/bin/python3.11 -m pip uninstall -y torch torchvision torchaudio
           /usr/bin/python3.11 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-          /usr/bin/python3.11 -c "import torch; print(f'PyTorch CUDA available: {torch.cuda.is_available()}')"
+          /usr/bin/python3.11 -m pip install 'docling-core[chunking]' docling
+          /usr/bin/python3.11 -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
 
       - name: Execute All Notebooks via Pytest
         run: |
