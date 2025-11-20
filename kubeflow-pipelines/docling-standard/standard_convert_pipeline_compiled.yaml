@@ -52,6 +52,10 @@ components:
             schemaVersion: 0.0.1
           description: Path to the input directory containing PDF files.
       parameters:
+        accelerator_device:
+          defaultValue: auto
+          isOptional: true
+          parameterType: STRING
         allow_external_plugins:
           defaultValue: false
           description: Whether or not to allow external plugins.
@@ -329,22 +333,23 @@ deploymentSpec:
           \ ocr: bool = True,\n    force_ocr: bool = False,\n    ocr_engine: str =\
           \ \"tesseract\",\n    allow_external_plugins: bool = False,\n    enrich_code:\
           \ bool = False,\n    enrich_formula: bool = False,\n    enrich_picture_classes:\
-          \ bool = False,\n    enrich_picture_description: bool = False,\n):\n   \
-          \ \"\"\"\n    Convert a list of PDF files to JSON and Markdown using Docling\
-          \ (Standard Pipeline).\n\n    Args:\n        input_path: Path to the input\
-          \ directory containing PDF files.\n        artifacts_path: Path to the directory\
-          \ containing Docling models.\n        output_path: Path to the output directory\
-          \ for converted JSON and Markdown files.\n        pdf_filenames: List of\
-          \ PDF file names to process.\n        pdf_backend: Backend to use for PDF\
-          \ processing.\n        image_export_mode: Mode to export images.\n     \
-          \   table_mode: Mode to detect tables.\n        num_threads: Number of threads\
-          \ to use per document processing.\n        timeout_per_document: Timeout\
-          \ per document processing.\n        ocr: Whether or not to use OCR if needed.\n\
-          \        force_ocr: Whether or not to force OCR.\n        ocr_engine: Engine\
-          \ to use for OCR.\n        allow_external_plugins: Whether or not to allow\
-          \ external plugins.\n        enrich_code: Whether or not to enrich code.\n\
-          \        enrich_formula: Whether or not to enrich formula.\n        enrich_picture_classes:\
-          \ Whether or not to enrich picture classes.\n        enrich_picture_description:\
+          \ bool = False,\n    enrich_picture_description: bool = False,\n    accelerator_device:\
+          \ str = \"auto\",\n):\n    \"\"\"\n    Convert a list of PDF files to JSON\
+          \ and Markdown using Docling (Standard Pipeline).\n\n    Args:\n       \
+          \ input_path: Path to the input directory containing PDF files.\n      \
+          \  artifacts_path: Path to the directory containing Docling models.\n  \
+          \      output_path: Path to the output directory for converted JSON and\
+          \ Markdown files.\n        pdf_filenames: List of PDF file names to process.\n\
+          \        pdf_backend: Backend to use for PDF processing.\n        image_export_mode:\
+          \ Mode to export images.\n        table_mode: Mode to detect tables.\n \
+          \       num_threads: Number of threads to use per document processing.\n\
+          \        timeout_per_document: Timeout per document processing.\n      \
+          \  ocr: Whether or not to use OCR if needed.\n        force_ocr: Whether\
+          \ or not to force OCR.\n        ocr_engine: Engine to use for OCR.\n   \
+          \     allow_external_plugins: Whether or not to allow external plugins.\n\
+          \        enrich_code: Whether or not to enrich code.\n        enrich_formula:\
+          \ Whether or not to enrich formula.\n        enrich_picture_classes: Whether\
+          \ or not to enrich picture classes.\n        enrich_picture_description:\
           \ Whether or not to enrich picture description.\n    \"\"\"\n    from importlib\
           \ import import_module  # pylint: disable=import-outside-toplevel\n    from\
           \ pathlib import Path  # pylint: disable=import-outside-toplevel\n\n   \
@@ -380,15 +385,20 @@ deploymentSpec:
           \    ocr_engine_map = {\n        \"easyocr\": EasyOcrOptions,\n        \"\
           tesseract_cli\": TesseractCliOcrOptions,\n        \"tesseract\": TesseractOcrOptions,\n\
           \        \"ocrmac\": OcrMacOptions,\n        \"rapidocr\": RapidOcrOptions,\n\
-          \    }\n\n    input_path_p = Path(input_path.path)\n    artifacts_path_p\
-          \ = Path(artifacts_path.path)\n    output_path_p = Path(output_path.path)\n\
-          \    output_path_p.mkdir(parents=True, exist_ok=True)\n\n    input_pdfs\
-          \ = [input_path_p / name for name in pdf_filenames]\n    print(\n      \
-          \  f\"docling-standard-convert: starting with backend='{pdf_backend}', files={len(input_pdfs)}\"\
-          ,\n        flush=True,\n    )\n\n    pipeline_options = PdfPipelineOptions()\n\
-          \    pipeline_options.artifacts_path = artifacts_path_p\n    pipeline_options.do_code_enrichment\
-          \ = enrich_code\n    pipeline_options.do_formula_enrichment = enrich_formula\n\
-          \    pipeline_options.do_picture_classification = enrich_picture_classes\n\
+          \    }\n    device_map = {\n        \"auto\": AcceleratorDevice.AUTO,\n\
+          \        \"cpu\": AcceleratorDevice.CPU,\n        \"cuda\": AcceleratorDevice.CUDA,\n\
+          \        \"gpu\": AcceleratorDevice.CUDA,  # alias\n        \"mps\": AcceleratorDevice.MPS,\n\
+          \    }\n    dev = accelerator_device.lower()\n    if dev not in device_map:\n\
+          \        raise ValueError(\n            f\"Invalid accelerator_device: {accelerator_device}.\
+          \ Must be one of {sorted(device_map.keys())}\"\n        )\n\n    input_path_p\
+          \ = Path(input_path.path)\n    artifacts_path_p = Path(artifacts_path.path)\n\
+          \    output_path_p = Path(output_path.path)\n    output_path_p.mkdir(parents=True,\
+          \ exist_ok=True)\n\n    input_pdfs = [input_path_p / name for name in pdf_filenames]\n\
+          \    print(\n        f\"docling-standard-convert: starting with backend='{pdf_backend}',\
+          \ files={len(input_pdfs)}\",\n        flush=True,\n    )\n\n    pipeline_options\
+          \ = PdfPipelineOptions()\n    pipeline_options.artifacts_path = artifacts_path_p\n\
+          \    pipeline_options.do_code_enrichment = enrich_code\n    pipeline_options.do_formula_enrichment\
+          \ = enrich_formula\n    pipeline_options.do_picture_classification = enrich_picture_classes\n\
           \    pipeline_options.do_picture_description = enrich_picture_description\n\
           \    pipeline_options.do_ocr = ocr\n    if ocr and ocr_engine in ocr_engine_map:\n\
           \        OcrOptionsClass = ocr_engine_map[ocr_engine]\n        ocr_options_instance\
@@ -398,7 +408,7 @@ deploymentSpec:
           \    pipeline_options.generate_page_images = True\n    pipeline_options.table_structure_options.mode\
           \ = TableFormerMode(table_mode)\n    pipeline_options.document_timeout =\
           \ float(timeout_per_document)\n    pipeline_options.accelerator_options\
-          \ = AcceleratorOptions(\n        num_threads=num_threads, device=AcceleratorDevice.AUTO\n\
+          \ = AcceleratorOptions(\n        num_threads=num_threads, device=device_map[dev]\n\
           \    )\n\n    backend_to_impl = {\n        PdfBackend.PYPDFIUM2.value: (\n\
           \            \"docling.backend.pypdfium2_backend\",\n            \"PyPdfiumDocumentBackend\"\
           ,\n        ),\n        PdfBackend.DLPARSE_V1.value: (\n            \"docling.backend.docling_parse_backend\"\
