@@ -7,7 +7,12 @@ from pathlib import Path
 
 import pytest
 
-
+# Notebooks to temporarily skip due to environment/dependency issues
+SKIP_FOR_NOW = [
+    "dataset-preparation-for-RAG.ipynb",    # Milvus connection issues on EC2 instance
+    "information-extraction.ipynb",         # CUDA library issues  
+    "subset-selection.ipynb"                # CUDA library issues
+]
 def get_notebook_files():
     """Discover all notebook files in the notebooks directory."""
     # Get the directory where this conftest.py file is located
@@ -22,7 +27,15 @@ def get_notebook_files():
     # Convert to Path objects and filter out any non-existent files
     notebook_paths = [Path(f) for f in notebook_files if Path(f).exists()]
     
-    return notebook_paths
+    # Filter out problematic notebooks for now
+    filtered_notebooks = [
+        nb for nb in notebook_paths 
+        if not any(skip_name in nb.name for skip_name in SKIP_FOR_NOW)
+    ]
+    
+    print(f"Found {len(notebook_paths)} total notebooks, running {len(filtered_notebooks)} (skipped {len(notebook_paths) - len(filtered_notebooks)})")
+    
+    return filtered_notebooks
 
 
 @pytest.fixture
