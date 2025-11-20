@@ -1,21 +1,12 @@
 name: Execute All Notebooks
 
 on:
-  workflow_dispatch:
-    inputs:
-      # FUTURE USE:
-      # Maintainers can provide a PR number or existing upstream branch name to run this
-      # job against. If no PR number or branch name is provided, this job will run against
-      # content in the "main" branch instead.
-      pr_or_branch:
-        description: "Pull request number or branch name"
-        required: true
-        default: "main"
-  pull_request:
-    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
     paths:
       - "notebooks/**/*.ipynb"
       - ".github/workflows/execute-all-notebooks.yml"
+  workflow_dispatch:  # Keep manual trigger for testing
 
 env:
   INSTANCE_TYPE: "g6e.xlarge"
