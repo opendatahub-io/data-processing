@@ -28,7 +28,6 @@ def execute_single_notebook(notebook_path: Path) -> bool:
     
     Args:
         notebook_path: Path to notebook to execute
-        timeout: Execution timeout in seconds
         
     Returns:
         True if successful, raises exception if failed
