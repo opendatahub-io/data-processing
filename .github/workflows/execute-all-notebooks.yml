@@ -96,20 +96,19 @@ jobs:
         run: |
             # Create comprehensive requirements file
             cat > notebook-requirements.txt << 'EOF'
-            torch==2.1.0+cpu
-            torchvision==0.16.0+cpu 
-            torchaudio==2.1.0+cpu
-            --find-links https://download.pytorch.org/whl/cpu
-            datasets==2.14.0
-            pyarrow==13.0.0
-            h5py==3.9.0
-            transformers==4.33.0
-            sentence-transformers==2.2.2
-            accelerate==0.22.0
-            tokenizers==0.13.3
-            pymilvus==2.3.0
-            docling-core[chunking]==1.0.0
-            docling==1.5.0
+            --extra-index-url https://download.pytorch.org/whl/cpu
+            torch
+            torchvision  
+            torchaudio
+            datasets
+            pyarrow
+            h5py
+            transformers
+            sentence-transformers
+            accelerate
+            tokenizers
+            pymilvus
+            docling
             EOF
             
             # Install everything at once to avoid conflicts
