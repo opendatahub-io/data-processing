@@ -39,7 +39,7 @@ jobs:
 
       - name: Start Data Processing EC2 runner
         id: start-ec2-runner
-        uses: machulav/ec2-github-runner@a6dbcefcf8a31a861f5e078bb153ed332130c512 # v4.3.2
+        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v4.3.2
         with:
           mode: start
           github-token: "${{ secrets.DATA_PROCESSING_GH_PERSONAL_ACCESS_TOKEN }}"
@@ -66,6 +66,57 @@ jobs:
         run: |
           echo "hello. i'm running from inside of EC2 instance ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
 
+      - uses: actions/checkout@v5
+
+      - name: Set up Python via dnf for centos
+        run: |
+          cat /etc/os-release
+          mkdir -p /home/tmp
+          sudo dnf install -y gcc gcc-c++ make git-core python3.11 python3.11-devel python3-pip
+          /usr/bin/python3.11 -V
+
+      - name: Ensure pip for python3.11 and install dependencies
+        run: |
+          /usr/bin/python3.11 -m ensurepip --upgrade >/dev/null 2>&1 || true
+          /usr/bin/python3.11 -m pip install --upgrade pip setuptools wheel
+          /usr/bin/python3.11 -m pip install -r requirements-dev.txt
+          /usr/bin/python3.11 -m pip install papermill ipykernel jupyter
+          /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
+
+      - name: Install Missing Notebook Dependencies  # ← Replace this entire section
+        run: |
+            # Create comprehensive requirements file
+            cat > notebook-requirements.txt << 'EOF'
+            --extra-index-url https://download.pytorch.org/whl/cpu
+            torch
+            torchvision  
+            torchaudio
+            datasets
+            pyarrow
+            h5py
+            transformers
+            sentence-transformers
+            accelerate
+            tokenizers
+            pymilvus
+            docling
+            EOF
+            
+            # Install everything at once to avoid conflicts
+            /usr/bin/python3.11 -m pip install -r notebook-requirements.txt
+            /usr/bin/python3.11 -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+      - name: Execute All Notebooks via Pytest
+        run: |
+          export PYTHONPATH="$(pwd):$PYTHONPATH"
+          cd tests
+          /usr/bin/python3.11 -m pytest test_notebook_execution.py -v --tb=short
+        env: 
+          CUDA_VISIBLE_DEVICES: ""
+          OMP_NUM_THREADS: "4"
+          MKL_NUM_THREADS: "4"
+          TORCH_USE_CUDA_DSA: "0"
+
+
   stop-ec2-runner:
     permissions:
       id-token: write # This is required for OIDC (AWS auth)
@@ -84,7 +135,7 @@ jobs:
           role-session-name: odh-data-processing  # For tracking in CloudTrail
 
       - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@a6dbcefcf8a31a861f5e078bb153ed332130c512 # v4.3.2
+        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v4.3.2
         with:
           mode: stop
           github-token: "${{ secrets.DATA_PROCESSING_GH_PERSONAL_ACCESS_TOKEN }}"
