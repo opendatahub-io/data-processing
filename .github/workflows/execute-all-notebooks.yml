@@ -102,7 +102,7 @@ jobs:
           sudo dnf clean all
           
           
-          sudo dnf install -y cuda-12-0 -nogpgcheck
+          sudo dnf install -y cuda-12-0 --nogpgcheck
           
           ls -la /usr/local/cuda*/lib64/libcusparse* || echo "No cusparse found"
           ls -la /usr/local/cuda*/bin/nvcc || echo "No nvcc found"
