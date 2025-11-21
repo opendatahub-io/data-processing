@@ -16,6 +16,7 @@ on:
     paths:
       - "notebooks/**/*.ipynb"
       - ".github/workflows/execute-all-notebooks.yml"
+  push:
 env:
   INSTANCE_TYPE: "g6e.xlarge"
 
@@ -99,14 +100,13 @@ jobs:
         run: |
           sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo
           sudo dnf clean all
-
-          sudo dnf search cuda-cusparse | grep 12
           
-          sudo dnf install -y cuda-toolkit-12-2 || sudo dnf install -y cuda-toolkit-12-1 || sudo dnf install -y cuda-toolkit-12-0
+          sudo rpm --import https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/7fa2af80.pub
           
-          sudo dnf install -y cuda-cusparse-12-2 || sudo dnf install -y cuda-cusparse-12-1 || sudo dnf install -y cuda-cusparse-12-0
+          sudo dnf install -y cuda-12-0
           
-          ls -la /usr/local/cuda*/lib64/libcusparse*
+          ls -la /usr/local/cuda*/lib64/libcusparse* || echo "No cusparse found"
+          ls -la /usr/local/cuda*/bin/nvcc || echo "No nvcc found"
 
       - name: Execute All Notebooks via Pytest
         run: |
