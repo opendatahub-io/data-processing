@@ -11,7 +11,12 @@ on:
         description: "Pull request number or branch name"
         required: true
         default: "main"
-
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "notebooks/**/*.ipynb"
+      - ".github/workflows/execute-all-notebooks.yml"
+  push:
 env:
   INSTANCE_TYPE: "g6e.xlarge"
 
@@ -69,6 +74,47 @@ jobs:
       - name: Setup Environment
         run: |
           echo "hello. i'm running from inside of EC2 instance ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
+
+      - uses: actions/checkout@v5
+
+      - name: Set up Python via dnf for centos
+        run: |
+          cat /etc/os-release
+          mkdir -p /home/tmp
+          sudo dnf install -y gcc gcc-c++ make git-core python3.11 python3.11-devel python3-pip
+          /usr/bin/python3.11 -V
+
+      - name: Ensure pip for python3.11 and install dependencies
+        run: |
+          /usr/bin/python3.11 -m ensurepip --upgrade >/dev/null 2>&1 || true
+          /usr/bin/python3.11 -m pip install --upgrade pip setuptools wheel
+          /usr/bin/python3.11 -m pip install -r requirements-dev.txt
+          /usr/bin/python3.11 -m pip install papermill ipykernel jupyter
+          /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
+      
+      - name: Install Missing Notebook Dependencies
+        run: |
+          /usr/bin/python3.11 -m pip install 'docling-core[chunking]' docling torch
+
+      - name: Setup CUDA Libraries
+        run: |
+          sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo
+          sudo dnf clean all
+          
+          
+          sudo dnf install -y cuda-12-0 --nogpgcheck
+          
+          ls -la /usr/local/cuda*/lib64/libcusparse* || echo "No cusparse found"
+          ls -la /usr/local/cuda*/bin/nvcc || echo "No nvcc found"
+
+      - name: Execute All Notebooks via Pytest
+        run: |
+          export PYTHONPATH="$(pwd):$PYTHONPATH"
+          export CUDA_HOME=/usr/local/cuda
+          export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+          cd tests
+          /usr/bin/python3.11 -m pytest test_notebook_execution.py -v --tb=short
+
 
   stop-ec2-runner:
     permissions:

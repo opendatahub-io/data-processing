@@ -1,4 +1,4 @@
-.PHONY: format-python format-notebook format-python-check format-notebooks-check test-notebook-parameters
+.PHONY: format-python format-notebook format-python-check format-notebooks-check test-notebook-parameters test-notebook-execution test-kfp-components test-notebooks test-all
 
 USE_CASES := $(wildcard notebooks/use-cases/*.ipynb)
 TUTORIALS := $(wildcard notebooks/tutorials/*.ipynb)
@@ -29,3 +29,16 @@ test-notebook-parameters:
 	@echo "Running notebook parameters validation..."
 	pytest tests/test_notebook_parameters.py -v
 	@echo "Notebook parameters test passed :)"
+
+test-notebook-execution:
+	@echo "Running notebook execution tests..."
+	pytest tests/test_notebook_execution.py -v
+	@echo "Notebook execution tests passed :)"
+
+test-notebooks: format-notebooks-check test-notebook-parameters test-notebook-execution
+	@echo "All notebook validations completed successfully (formatting, parameters, execution) :)"
+
+test-all:
+	@echo "Running all tests..."
+	pytest tests/ -v
+	@echo "All tests passed :)"
