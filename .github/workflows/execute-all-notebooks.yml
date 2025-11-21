@@ -1,13 +1,21 @@
 name: Execute All Notebooks
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      # FUTURE USE:
+      # Maintainers can provide a PR number or existing upstream branch name to run this
+      # job against. If no PR number or branch name is provided, this job will run against
+      # content in the "main" branch instead.
+      pr_or_branch:
+        description: "Pull request number or branch name"
+        required: true
+        default: "main"
+  pull_request:
+    types: [opened, synchronize, reopened]
     paths:
       - "notebooks/**/*.ipynb"
       - ".github/workflows/execute-all-notebooks.yml"
-  workflow_dispatch:  # Keep manual trigger for testing
-
 env:
   INSTANCE_TYPE: "g6e.xlarge"
 
@@ -82,39 +90,31 @@ jobs:
           /usr/bin/python3.11 -m pip install -r requirements-dev.txt
           /usr/bin/python3.11 -m pip install papermill ipykernel jupyter
           /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
-
-      - name: Install Missing Notebook Dependencies  # ← Replace this entire section
+      
+      - name: Install Missing Notebook Dependencies
         run: |
-            # Create comprehensive requirements file
-            cat > notebook-requirements.txt << 'EOF'
-            --extra-index-url https://download.pytorch.org/whl/cpu
-            torch
-            torchvision  
-            torchaudio
-            datasets
-            pyarrow
-            h5py
-            transformers
-            sentence-transformers
-            accelerate
-            tokenizers
-            pymilvus
-            docling
-            EOF
-            
-            # Install everything at once to avoid conflicts
-            /usr/bin/python3.11 -m pip install -r notebook-requirements.txt
-            /usr/bin/python3.11 -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+          /usr/bin/python3.11 -m pip install 'docling-core[chunking]' docling torch
+
+      - name: Setup CUDA Libraries
+        run: |
+          sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo
+          sudo dnf clean all
+
+          sudo dnf search cuda-cusparse | grep 12
+          
+          sudo dnf install -y cuda-toolkit-12-2 || sudo dnf install -y cuda-toolkit-12-1 || sudo dnf install -y cuda-toolkit-12-0
+          
+          sudo dnf install -y cuda-cusparse-12-2 || sudo dnf install -y cuda-cusparse-12-1 || sudo dnf install -y cuda-cusparse-12-0
+          
+          ls -la /usr/local/cuda*/lib64/libcusparse*
+
       - name: Execute All Notebooks via Pytest
         run: |
           export PYTHONPATH="$(pwd):$PYTHONPATH"
+          export CUDA_HOME=/usr/local/cuda
+          export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
           cd tests
           /usr/bin/python3.11 -m pytest test_notebook_execution.py -v --tb=short
-        env: 
-          CUDA_VISIBLE_DEVICES: ""
-          OMP_NUM_THREADS: "4"
-          MKL_NUM_THREADS: "4"
-          TORCH_USE_CUDA_DSA: "0"
 
 
   stop-ec2-runner:
