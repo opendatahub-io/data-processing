@@ -27,7 +27,7 @@ jobs:
       pull-requests: read
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           # For pull_request_target on forks, ensure we check out the merge commit or default branch safely
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
