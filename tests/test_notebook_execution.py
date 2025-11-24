@@ -30,7 +30,8 @@ def get_test_parameters(notebook_path: Path = None):
         
         notebook_specific_params = {
             "subset-selection.ipynb": {
-                "input_files": [str(test_dir / "assets" / "subset-selection" / "combined_cut_50x.jsonl")]
+                "input_files": [str(test_dir / "assets" / "subset-selection" / "combined_cut_50x.jsonl")],
+                "testing_mode": True
             },
             # Add more notebook-specific parameters here as needed
             # "document-conversion-standard.ipynb": {
