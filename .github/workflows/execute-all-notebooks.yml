@@ -90,22 +90,13 @@ jobs:
           /usr/bin/python3.11 -m pip install --upgrade pip setuptools wheel
           /usr/bin/python3.11 -m pip install -r requirements-dev.txt
           /usr/bin/python3.11 -m pip install papermill ipykernel jupyter
+          /usr/bin/python3.11 -m pip install datasets pymilvus h5py
           /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
-      
-      - name: Install Missing Notebook Dependencies
-        run: |
-          /usr/bin/python3.11 -m pip install 'docling-core[chunking]' docling torch
 
-      - name: Setup CUDA Libraries
+      - name: Setup CUDA PARSE library
         run: |
-          sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo
-          sudo dnf clean all
-          
-          
-          sudo dnf install -y cuda-12-0 --nogpgcheck
-          
-          ls -la /usr/local/cuda*/lib64/libcusparse* || echo "No cusparse found"
-          ls -la /usr/local/cuda*/bin/nvcc || echo "No nvcc found"
+          sudo dnf install -y libcusparselt0-cuda-12.x86_64
+
 
       - name: Execute All Notebooks via Pytest
         run: |

@@ -9,9 +9,7 @@ import pytest
 
 # Notebooks to temporarily skip due to environment/dependency issues
 SKIP_FOR_NOW = [
-    "dataset-preparation-for-RAG.ipynb",    # Milvus connection issues on EC2 instance
-    "information-extraction.ipynb",         # CUDA library issues  
-    "subset-selection.ipynb"                # CUDA library issues
+    "dataset-preparation-for-RAG.ipynb"   # Milvus connection issues on EC2 instance
 ]
 def get_notebook_files():
     """Discover all notebook files in the notebooks directory."""

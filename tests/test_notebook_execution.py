@@ -15,13 +15,33 @@ import pytest
 from conftest import get_notebook_files
 
 
-def get_test_parameters():
-    """Get default test parameters for notebook execution."""
-    return {
+def get_test_parameters(notebook_path: Path = None):
+    """Get test parameters for notebook execution, with notebook-specific overrides."""
+    
+    # Default parameters
+    default_params = {
         "files": [],  # specify files to use for the notebook
     }
-
-
+    
+    # Notebook-specific parameters
+    if notebook_path:
+        # Get the test directory (where this file is located)
+        test_dir = Path(__file__).parent
+        
+        notebook_specific_params = {
+            "subset-selection.ipynb": {
+                "input_files": [str(test_dir / "assets" / "subset-selection" / "combined_cut_50x.jsonl")]
+            },
+            # Add more notebook-specific parameters here as needed
+            # "document-conversion-standard.ipynb": {
+            #     "files": ["https://example.com/sample.pdf"]
+            # }
+        }
+        
+        # Return notebook-specific params if available, otherwise default
+        return notebook_specific_params.get(notebook_path.name, default_params)
+    
+    return default_params
 def execute_single_notebook(notebook_path: Path) -> bool:
     """
     Execute a single notebook with papermill.
@@ -37,7 +57,7 @@ def execute_single_notebook(notebook_path: Path) -> bool:
         output_path = Path(tmp_file.name)
     
     try:
-        test_params = get_test_parameters()
+        test_params = get_test_parameters(notebook_path)  # Pass notebook_path here
         # Remove 'files' key if it's empty (let notebook use its own files)
         if 'files' in test_params and not test_params['files']:
             test_params = {k: v for k, v in test_params.items() if k != 'files'}
