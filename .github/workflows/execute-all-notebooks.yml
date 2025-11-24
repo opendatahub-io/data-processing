@@ -91,6 +91,7 @@ jobs:
           /usr/bin/python3.11 -m pip install -r requirements-dev.txt
           /usr/bin/python3.11 -m pip install papermill ipykernel jupyter
           /usr/bin/python3.11 -m pip install datasets pymilvus h5py
+          /usr/bin/python3.11 -m pip install -r scripts/subset_selection/requirements.txt
           /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
 
       - name: Setup CUDA PARSE library
