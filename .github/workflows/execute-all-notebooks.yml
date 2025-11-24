@@ -88,8 +88,9 @@ jobs:
         run: |
           /usr/bin/python3.11 -m ensurepip --upgrade >/dev/null 2>&1 || true
           /usr/bin/python3.11 -m pip install --upgrade pip setuptools wheel
+          /usr/bin/python3.11 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
           /usr/bin/python3.11 -m pip install -r requirements-dev.txt
-          /usr/bin/python3.11 -m pip install papermill ipykernel jupyter
+          /usr/bin/python3.11 -m pip install papermill ipykernel jupyter "docling[chunking]"
           /usr/bin/python3.11 -m pip install datasets pymilvus h5py
           /usr/bin/python3.11 -m pip install -r scripts/subset_selection/requirements.txt
           /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
