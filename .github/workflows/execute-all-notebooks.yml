@@ -48,14 +48,17 @@ jobs:
 
       - name: Start Data Processing EC2 runner
         id: start-ec2-runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v4.3.2
+        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.4.3
         with:
           mode: start
           github-token: "${{ secrets.DATA_PROCESSING_GH_PERSONAL_ACCESS_TOKEN }}"
-          ec2-image-id: "${{ vars.US_EAST_2_AMI_ID }}"
           ec2-instance-type: "${{ env.INSTANCE_TYPE }}"
-          subnet-id: "${{ vars.US_EAST_2A_SUBNET_ID }}"
-          security-group-id: "${{ vars.US_EAST_2_SG_ID }}"
+          availability-zones-config: >
+            [
+              {"imageId": "${{ vars.US_EAST_2_AMI_ID }}", "subnetId": "${{ vars.US_EAST_2A_SUBNET_ID }}", "securityGroupId": "${{ vars.US_EAST_2_SG_ID }}"},
+              {"imageId": "${{ vars.US_EAST_2_AMI_ID }}", "subnetId": "${{ vars.US_EAST_2B_SUBNET_ID }}", "securityGroupId": "${{ vars.US_EAST_2_SG_ID }}"},
+              {"imageId": "${{ vars.US_EAST_2_AMI_ID }}", "subnetId": "${{ vars.US_EAST_2C_SUBNET_ID }}", "securityGroupId": "${{ vars.US_EAST_2_SG_ID }}"}
+            ]
           iam-role-name: "${{ vars.DATA_PROCESSING_IAM_ROLE }}"
           aws-resource-tags: >
             [
