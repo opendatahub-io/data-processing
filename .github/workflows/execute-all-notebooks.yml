@@ -16,7 +16,6 @@ on:
     paths:
       - "notebooks/**/*.ipynb"
       - ".github/workflows/execute-all-notebooks.yml"
-  push:
 env:
   INSTANCE_TYPE: "g6e.xlarge"
 
@@ -67,8 +66,6 @@ jobs:
               {"Key": "GitHubRef", "Value": "${{ github.ref }}"},
               {"Key": "GitHubPR", "Value": "${{ github.event.number }}"}
             ]
-  
-
   execute-all-notebooks:
     needs:
       - launch-ec2-runner
@@ -77,9 +74,10 @@ jobs:
     steps:
       - name: Setup Environment
         run: |
-          echo "hello. i'm running from inside of EC2 instance ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
+          echo "Running on EC2: ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
 
-      - uses: actions/checkout@v5
+      # FIX: Use v4, as v5 does not exist yet
+      - uses: actions/checkout@v4
 
       - name: Set up Python via dnf for centos
         run: |
@@ -88,30 +86,40 @@ jobs:
           sudo dnf install -y gcc gcc-c++ make git-core python3.11 python3.11-devel python3-pip
           /usr/bin/python3.11 -V
 
-      - name: Ensure pip for python3.11 and install dependencies
+      - name: Setup CUDA Libraries (Toolkit + SparseLt)
+        run: |
+          # FIX: Install the FULL toolkit to get libnvshmem, nccl, etc.
+          sudo dnf install -y cuda-toolkit-12-4
+          
+          # Install the specific SparseLt library (missing from toolkit)
+          sudo dnf install -y libcusparselt0-cuda-12.x86_64
+
+      - name: Ensure pip and install dependencies
         run: |
           /usr/bin/python3.11 -m ensurepip --upgrade >/dev/null 2>&1 || true
           /usr/bin/python3.11 -m pip install --upgrade pip setuptools wheel
+          
+          # 1. Install Generic Requirements FIRST
           /usr/bin/python3.11 -m pip install -r requirements-dev.txt
           /usr/bin/python3.11 -m pip install -r scripts/subset_selection/requirements.txt
+          
+          # 2. Force Reinstall GPU-Specific Versions LAST
           /usr/bin/python3.11 -m pip install --force-reinstall torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
           /usr/bin/python3.11 -m pip install --force-reinstall papermill ipykernel jupyter "docling[chunking]"
           /usr/bin/python3.11 -m pip install datasets pymilvus h5py
+          
+          # Register kernel
           /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
-
-      - name: Setup CUDA PARSE library
-        run: |
-          sudo dnf install -y libcusparselt0-cuda-12.x86_64
-
 
       - name: Execute All Notebooks via Pytest
         run: |
           export PYTHONPATH="$(pwd):$PYTHONPATH"
+          # Ensure we look in both the Toolkit path and standard System libs
           export CUDA_HOME=/usr/local/cuda
-          export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+          export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/lib64:$LD_LIBRARY_PATH
+          
           cd tests
           /usr/bin/python3.11 -m pytest test_notebook_execution.py -v --tb=short
-
 
   stop-ec2-runner:
     permissions:
