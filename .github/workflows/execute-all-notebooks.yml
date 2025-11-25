@@ -43,14 +43,17 @@ jobs:
 
       - name: Start Data Processing EC2 runner
         id: start-ec2-runner
-        uses: machulav/ec2-github-runner@a6dbcefcf8a31a861f5e078bb153ed332130c512 # v4.3.2
+        uses: machulav/ec2-github-runner@a6dbcefcf8a31a861f5e078bb153ed332130c512 # v2.4.3
         with:
           mode: start
           github-token: "${{ secrets.DATA_PROCESSING_GH_PERSONAL_ACCESS_TOKEN }}"
-          ec2-image-id: "${{ vars.US_EAST_2_AMI_ID }}"
           ec2-instance-type: "${{ env.INSTANCE_TYPE }}"
-          subnet-id: "${{ vars.US_EAST_2A_SUBNET_ID }}"
-          security-group-id: "${{ vars.US_EAST_2_SG_ID }}"
+          availability-zones-config: >
+            [
+              {"imageId": "${{ vars.US_EAST_2_AMI_ID }}", "subnetId": "${{ vars.US_EAST_2A_SUBNET_ID }}", "securityGroupId": "${{ vars.US_EAST_2_SG_ID }}"},
+              {"imageId": "${{ vars.US_EAST_2_AMI_ID }}", "subnetId": "${{ vars.US_EAST_2B_SUBNET_ID }}", "securityGroupId": "${{ vars.US_EAST_2_SG_ID }}"},
+              {"imageId": "${{ vars.US_EAST_2_AMI_ID }}", "subnetId": "${{ vars.US_EAST_2C_SUBNET_ID }}", "securityGroupId": "${{ vars.US_EAST_2_SG_ID }}"}
+            ]
           iam-role-name: "${{ vars.DATA_PROCESSING_IAM_ROLE }}"
           aws-resource-tags: >
             [
@@ -88,9 +91,10 @@ jobs:
           role-session-name: odh-data-processing  # For tracking in CloudTrail
 
       - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@a6dbcefcf8a31a861f5e078bb153ed332130c512 # v4.3.2
+        uses: machulav/ec2-github-runner@a6dbcefcf8a31a861f5e078bb153ed332130c512 # v2.4.3
         with:
           mode: stop
           github-token: "${{ secrets.DATA_PROCESSING_GH_PERSONAL_ACCESS_TOKEN }}"
           label: ${{ needs.launch-ec2-runner.outputs.label }}
           ec2-instance-id: ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}
+
