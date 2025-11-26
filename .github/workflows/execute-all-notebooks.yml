@@ -117,7 +117,7 @@ jobs:
           export PYTHONPATH="$(pwd):$PYTHONPATH"
           # Ensure we look in both the Toolkit path and standard System libs
           export CUDA_HOME=/usr/local/cuda
-          export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/lib64:$LD_LIBRARY_PATH
+          # export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/lib64:$LD_LIBRARY_PATH
           
           cd tests
           /usr/bin/python3.11 -m pytest test_notebook_execution.py -v --tb=short
