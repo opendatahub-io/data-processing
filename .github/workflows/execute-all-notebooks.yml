@@ -117,9 +117,15 @@ jobs:
         run: |
           export PYTHONPATH="$(pwd):$PYTHONPATH"
           
+          # 1. Find where pip installed the torch libraries (where libnvshmem lives)
+          TORCH_LIB_PATH=$(/usr/bin/python3.11 -c "import site; print(site.getsitepackages()[0] + '/torch/lib')")
+          
           export CUDA_HOME=/usr/local/cuda
           
-          export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/lib64:$LD_LIBRARY_PATH
+          # 2. CRITICAL: Add TORCH_LIB_PATH to the start.
+          # This tells Linux: "Look in the Python folder for libnvshmem/libnccl FIRST."
+          # If not found there, look in /usr/local/cuda/lib64 (for libcusparselt).
+          export LD_LIBRARY_PATH=$TORCH_LIB_PATH:/usr/local/cuda/lib64:/usr/lib64:$LD_LIBRARY_PATH
           
           cd tests
           /usr/bin/python3.11 -m pytest test_notebook_execution.py -v --tb=short
