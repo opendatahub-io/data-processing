@@ -89,10 +89,10 @@ jobs:
       - name: Setup CUDA Libraries (Toolkit + SparseLt)
         run: |
           # FIX: Install the FULL toolkit to get libnvshmem, nccl, etc.
-          sudo dnf install -y cuda-toolkit-12-4 
+          # sudo dnf install -y cuda-toolkit-12-4 
           
           # Install the specific SparseLt library (missing from toolkit)
-          sudo dnf install -y libcusparselt0-cuda-12.x86_64 openmpi 
+          sudo dnf install -y libcusparselt0-cuda-12.x86_64
           sudo dnf install -y nvshmem || echo "NVSHMEM not in repo, relying on pip"
 
       - name: Ensure pip and install dependencies
@@ -105,7 +105,7 @@ jobs:
           /usr/bin/python3.11 -m pip install -r scripts/subset_selection/requirements.txt
           
           # 2. Force Reinstall GPU-Specific Versions LAST
-          #/usr/bin/python3.11 -m pip install --force-reinstall torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+          /usr/bin/python3.11 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
           /usr/bin/python3.11 -m pip install ipykernel jupyter "docling[chunking]"
           /usr/bin/python3.11 -m pip install pymilvus 
           
