@@ -105,9 +105,9 @@ jobs:
           /usr/bin/python3.11 -m pip install -r scripts/subset_selection/requirements.txt
           
           # 2. Force Reinstall GPU-Specific Versions LAST
-          /usr/bin/python3.11 -m pip install --force-reinstall torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-          /usr/bin/python3.11 -m pip install --force-reinstall papermill ipykernel jupyter "docling[chunking]"
-          /usr/bin/python3.11 -m pip install datasets pymilvus h5py
+          #/usr/bin/python3.11 -m pip install --force-reinstall torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+          /usr/bin/python3.11 -m pip install ipykernel jupyter "docling[chunking]"
+          /usr/bin/python3.11 -m pip install pymilvus 
           
           # Register kernel
           /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
