@@ -116,16 +116,24 @@ jobs:
       - name: Execute All Notebooks via Pytest
         run: |
           export PYTHONPATH="$(pwd):$PYTHONPATH"
+          # 1. Find the EXACT path where torch and nvidia libraries are installed.
+          # Note: Modern PyTorch 2.x splits libs into 'nvidia' namespace packages.
+          SITE_PACKAGES=$(/usr/bin/python3.11 -c "import site; print(site.getsitepackages()[0])")
           
-          # 1. Find where pip installed the torch libraries (where libnvshmem lives)
-          # TORCH_LIB_PATH=$(/usr/bin/python3.11 -c "import site; print(site.getsitepackages()[0] + '/torch/lib')")
+          # 2. Construct the paths to the bundled libraries
+          # Torch libs: libtorch_cuda.so, etc.
+          # Nvidia libs: libnccl.so.2 (inside nvidia/nccl/lib), libcublas.so (inside nvidia/cublas/lib)
+          TORCH_LIB="$SITE_PACKAGES/torch/lib"
+          NCCL_LIB="$SITE_PACKAGES/nvidia/nccl/lib"
+          CUSPARSE_LIB="$SITE_PACKAGES/nvidia/cusparse/lib"
           
-          export CUDA_HOME=/usr/local/cuda
+          # 3. Construct LD_LIBRARY_PATH manually including ALL these folders
+          # We append /usr/local/cuda/lib64 just in case you need the system libcusparselt
+          export LD_LIBRARY_PATH="$TORCH_LIB:$NCCL_LIB:$CUSPARSE_LIB:/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
           
-          # 2. CRITICAL: Add TORCH_LIB_PATH to the start.
-          # This tells Linux: "Look in the Python folder for libnvshmem/libnccl FIRST."
-          # If not found there, look in /usr/local/cuda/lib64 (for libcusparselt).
-          export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/lib64:$LD_LIBRARY_PATH
+          # Debug: Verify we can find the file now
+          echo "Debug Path: $LD_LIBRARY_PATH"
+          ls -l $NCCL_LIB/libnccl.so.2 || echo "Still missing bundled NCCL!"
           
           cd tests
           /usr/bin/python3.11 -m pytest test_notebook_execution.py -v --tb=short
