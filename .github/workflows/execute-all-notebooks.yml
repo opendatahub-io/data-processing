@@ -92,7 +92,7 @@ jobs:
           sudo dnf install -y cuda-toolkit-12-4
           
           # Install the specific SparseLt library (missing from toolkit)
-          sudo dnf install -y libcusparselt0-cuda-12.x86_64
+          sudo dnf install -y libcusparselt0-cuda-12.x86_64 libnvshmem libnccl
 
       - name: Ensure pip and install dependencies
         run: |
