@@ -94,6 +94,7 @@ jobs:
           # Install the specific SparseLt library (missing from toolkit)
           sudo dnf install -y libcusparselt0-cuda-12.x86_64
           sudo dnf install -y nvshmem || echo "NVSHMEM not in repo, relying on pip"
+          sudo rm -f /usr/lib64/libnccl.so* /usr/local/cuda-*/lib64/libnccl.so*
 
       - name: Ensure pip and install dependencies
         run: |
@@ -115,17 +116,10 @@ jobs:
       - name: Execute All Notebooks via Pytest
         run: |
           export PYTHONPATH="$(pwd):$PYTHONPATH"
-
-          # 1. Dynamically find the directory where pip installed torch libraries
-          # This guarantees we find the bundled libnccl.so
-          TORCH_LIB_PATH=$(/usr/bin/python3.11 -c "import site; print(site.getsitepackages()[0] + '/torch/lib')")
           
           export CUDA_HOME=/usr/local/cuda
           
-          # 2. CRITICAL FIX: Order matters!
-          # [Torch Libs] -> [System CUDA Libs] -> [Existing Path]
-          # This makes PyTorch happy (finds its own NCCL) AND Docling happy (finds system cuSPARSE)
-          export LD_LIBRARY_PATH=$TORCH_LIB_PATH:/usr/local/cuda/lib64:/usr/lib64:$LD_LIBRARY_PATH
+          export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/lib64:$LD_LIBRARY_PATH
           
           cd tests
           /usr/bin/python3.11 -m pytest test_notebook_execution.py -v --tb=short
