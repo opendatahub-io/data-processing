@@ -73,71 +73,59 @@ jobs:
 
     steps:
       - name: Setup Environment
-        run: |
-          echo "Running on EC2: ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
+        run: echo "Running on EC2 ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
 
-      # FIX: Use v4, as v5 does not exist yet
       - uses: actions/checkout@v4
 
-      - name: Set up Python via dnf for centos
+      - name: Setup System Dependencies (Python + CUDA Runtime)
         run: |
-          cat /etc/os-release
-          mkdir -p /home/tmp
+          # 1. Install Python and basic tools
           sudo dnf install -y gcc gcc-c++ make git-core python3.11 python3.11-devel python3-pip
-          /usr/bin/python3.11 -V
-
-      - name: Setup CUDA Libraries (Toolkit + SparseLt)
-        run: |
-          # FIX: Install the FULL toolkit to get libnvshmem, nccl, etc.
-          sudo dnf install -y cuda-toolkit-12-4 
           
-          # Install the specific SparseLt library (missing from toolkit)
-          sudo dnf install -y libcusparselt0-cuda-12.x86_64
-          sudo dnf install -y nvshmem || echo "NVSHMEM not in repo, relying on pip"
-          sudo rm -f /usr/lib64/libnccl.so* /usr/local/cuda-*/lib64/libnccl.so*
+          # 2. Install ONLY the runtime libraries (Skipping the full toolkit saves time/bandwidth)
+          # We need these because Docling/PyTorch may rely on system-level loader dependencies
+          sudo dnf install -y cuda-libraries-12-4 libcusparselt0-cuda-12.x86_64
 
-      - name: Ensure pip and install dependencies
+      - name: Install Python Dependencies
         run: |
+          # Setup Pip
           /usr/bin/python3.11 -m ensurepip --upgrade >/dev/null 2>&1 || true
           /usr/bin/python3.11 -m pip install --upgrade pip setuptools wheel
           
-          # 1. Install Generic Requirements FIRST
+          # 1. Install Requirements (Generic)
+          # We do this first so we can overwrite any bad CPU-versions it pulls in
           /usr/bin/python3.11 -m pip install -r requirements-dev.txt
           /usr/bin/python3.11 -m pip install -r scripts/subset_selection/requirements.txt
           
-          # 2. Force Reinstall GPU-Specific Versions LAST
-          /usr/bin/python3.11 -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-          /usr/bin/python3.11 -m pip install ipykernel jupyter "docling[chunking]"
-          /usr/bin/python3.11 -m pip install pymilvus 
+          # 2. Force Reinstall GPU-Specific Versions (The "Source of Truth")
+          # We group these into one command for speed.
+          /usr/bin/python3.11 -m pip install --force-reinstall \
+            torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
+            papermill ipykernel jupyter "docling[chunking]" datasets pymilvus h5py
           
-          # Register kernel
+          # Register Kernel
           /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
 
-      - name: Execute All Notebooks via Pytest
+      - name: Execute Notebooks
         run: |
           export PYTHONPATH="$(pwd):$PYTHONPATH"
           
-          # 1. Ask pip where it actually installed the NVIDIA NCCL package
-          # This handles the lib vs lib64 difference automatically.
+          # 1. Dynamically locate the pip-installed NVIDIA libraries
+          # This ensures we find the libs regardless of where pip put them (lib vs lib64)
           SITE_PACKAGES=$(/usr/bin/python3.11 -m pip show nvidia-nccl-cu12 | grep Location | awk '{print $2}')
           
-          echo "Found site-packages at: $SITE_PACKAGES"
-          
-          # 2. Construct the paths to the specific libraries
-          # PyTorch 2.x puts NCCL in nvidia/nccl/lib, not torch/lib
+          # 2. Construct Library Path with Strict Priority
+          # [Pip NCCL] -> [Pip Torch] -> [Pip cuSPARSE] -> [System CUDA]
+          # This prioritization fixes the "undefined symbol" and "missing shared object" errors simultaneously.
           NCCL_LIB="$SITE_PACKAGES/nvidia/nccl/lib"
           TORCH_LIB="$SITE_PACKAGES/torch/lib"
+          CUSPARSE_LIB="$SITE_PACKAGES/nvidia/cusparse/lib"
           
-          # 3. Construct LD_LIBRARY_PATH
-          # Priority: [Nvidia Bundle] -> [Torch Bundle] -> [System CUDA for SparseLt]
-          export LD_LIBRARY_PATH="$NCCL_LIB:$TORCH_LIB:/usr/local/cuda/lib64:/usr/lib64:$LD_LIBRARY_PATH"
+          export LD_LIBRARY_PATH="$NCCL_LIB:$TORCH_LIB:$CUSPARSE_LIB:/usr/local/cuda/lib64:/usr/lib64:$LD_LIBRARY_PATH"
           
-          # Debug: Verify existence (Fail fast if missing)
-          ls -l "$NCCL_LIB/libnccl.so.2"
-          
+          # 3. Run Tests
           cd tests
           /usr/bin/python3.11 -m pytest test_notebook_execution.py -v --tb=short
-
   stop-ec2-runner:
     permissions:
       id-token: write # This is required for OIDC (AWS auth)
