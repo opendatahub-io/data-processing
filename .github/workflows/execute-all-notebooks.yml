@@ -97,11 +97,15 @@ jobs:
           /usr/bin/python3.11 -m pip install -r requirements-dev.txt
           /usr/bin/python3.11 -m pip install -r scripts/subset_selection/requirements.txt
           
-          # 2. Force Reinstall GPU-Specific Versions (The "Source of Truth")
-          # We group these into one command for speed.
+          # 2. Force Reinstall GPU-Specific Versions (From PyTorch Index)
+          # We run this separately so --index-url doesn't break other packages
           /usr/bin/python3.11 -m pip install --force-reinstall \
-            torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
-            papermill ipykernel jupyter "docling[chunking]" datasets pymilvus h5py
+            torch torchvision torchaudio \
+            --index-url https://download.pytorch.org/whl/cu121
+            
+          # 3. Force Reinstall Standard Tools (From Default PyPI Index)
+          /usr/bin/python3.11 -m pip install \
+             papermill ipykernel jupyter "docling[chunking]" datasets pymilvus h5py
           
           # Register Kernel
           /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
