@@ -80,7 +80,7 @@ jobs:
       - name: Setup System Dependencies (Python + CUDA Runtime)
         run: |
           # 1. Install Python and basic tools
-          sudo dnf install -y gcc gcc-c++ make git-core python3.11 python3.11-devel python3-pip
+          sudo dnf install -y gcc gcc-c++ make git-core python3.11 python3.11-devel python3-pip libaio
           
           # 2. Install base runtime libraries (required by libcusparselt)
           sudo dnf install -y cuda-libraries-12-4
