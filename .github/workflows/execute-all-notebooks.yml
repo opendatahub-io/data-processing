@@ -85,6 +85,9 @@ jobs:
           # 2. Install ONLY the runtime libraries (Skipping the full toolkit saves time/bandwidth)
           # We need these because Docling/PyTorch may rely on system-level loader dependencies
           sudo dnf install -y cuda-toolkit-12-4 libcusparselt0-cuda-12.x86_64
+          # Install the specific SparseLt library (missing from toolkit)
+          sudo dnf install -y libcusparselt0-cuda-12.x86_64
+          sudo dnf install -y nvshmem || echo "NVSHMEM not in repo, relying on pip"
 
       - name: Install Python Dependencies
         run: |
