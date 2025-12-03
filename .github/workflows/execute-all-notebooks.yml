@@ -82,10 +82,10 @@ jobs:
           # 1. Install Python and basic tools
           sudo dnf install -y gcc gcc-c++ make git-core python3.11 python3.11-devel python3-pip
           
-          # 2. Install ONLY the runtime libraries (Skipping the full toolkit saves time/bandwidth)
-          # We need these because Docling/PyTorch may rely on system-level loader dependencies
-          sudo dnf install -y cuda-toolkit-12-4 libcusparselt0-cuda-12.x86_64
-          # Install the specific SparseLt library (missing from toolkit)
+          # 2. Install base runtime libraries (required by libcusparselt)
+          sudo dnf install -y cuda-libraries-12-4
+          
+          # 3. Install the specific library Docling needs
           sudo dnf install -y libcusparselt0-cuda-12.x86_64
           sudo dnf install -y nvshmem || echo "NVSHMEM not in repo, relying on pip"
 
@@ -110,7 +110,7 @@ jobs:
           /usr/bin/python3.11 -m pip install \
              papermill ipykernel jupyter "docling[chunking]" datasets pymilvus h5py
           
-          # Register Kernel
+          # 4. Register Kernel
           /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
 
       - name: Execute Notebooks
