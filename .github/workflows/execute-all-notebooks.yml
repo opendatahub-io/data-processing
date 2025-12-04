@@ -88,6 +88,11 @@ jobs:
           # 3. Install the specific library Docling needs
           sudo dnf install -y libcusparselt0-cuda-12.x86_64
           sudo dnf install -y nvshmem || echo "NVSHMEM not in repo, relying on pip"
+          
+          # 4. THE SAFETY CHECK: Hide System NCCL
+          # We remove the system libnccl so that when we put system paths first in LD_LIBRARY_PATH,
+          # PyTorch won't accidentally find this incompatible version.
+          sudo find /usr/lib64 /usr/local/cuda-*/lib64 -name "libnccl.so*" -exec rm -f {} \;
 
       - name: Install Python Dependencies
         run: |
@@ -117,34 +122,32 @@ jobs:
         run: |
           export PYTHONPATH="$(pwd):$PYTHONPATH"
           
-          # 1. Find the PyTorch bundled libraries location
+          # 1. Find the pip installation folder
           SITE_PACKAGES=$(/usr/bin/python3.11 -m pip show nvidia-nccl-cu12 | grep Location | awk '{print $2}')
           
-          # 2. Define paths
+          # 2. Define ALL bundled library paths
+          # NVIDIA-specific libs (Network/Math)
           NCCL_LIB="$SITE_PACKAGES/nvidia/nccl/lib"
           NVSHMEM_LIB="$SITE_PACKAGES/nvidia/nvshmem/lib"
           CUSPARSE_LIB="$SITE_PACKAGES/nvidia/cusparse/lib"
+          # Core PyTorch libs (libtorch_cuda.so, etc.)
+          TORCH_LIB="$SITE_PACKAGES/torch/lib"
           
-          echo "Injecting PyTorch libraries into system CUDA path..."
+          # 3. THE COMPLETE SANDWICH PATH
+          # Layer 1: System Standard (/usr/lib64). 
+          #          - Usage: Milvus (libstdc++, libaio).
+          #          - Safety: We deleted the bad libnccl here in previous step, so PyTorch is safe.
           
-          # 3. THE FIX: Symlink ALL bundled libs into the System Folder
-          # This overwrites the system's 12.4 versions with PyTorch's 12.1 versions.
-          # This guarantees PyTorch finds exactly what it wants, where it expects it.
+          # Layer 2: Bundled Pip Libs.
+          #          - Usage: PyTorch (libnccl, libnvshmem, libtorch_cuda).
           
-          # Fix NCCL
-          sudo ln -sf "$NCCL_LIB/libnccl.so.2" /usr/local/cuda/lib64/libnccl.so.2
+          # Layer 3: System CUDA (/usr/local/cuda/lib64).
+          #          - Usage: Docling (libcusparselt).
           
-          # Fix NVSHMEM
-          sudo ln -sf "$NVSHMEM_LIB/libnvshmem_host.so.3" /usr/local/cuda/lib64/libnvshmem_host.so.3
+          export LD_LIBRARY_PATH="/usr/lib64:$NCCL_LIB:$TORCH_LIB:$NVSHMEM_LIB:$CUSPARSE_LIB:/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
           
-          # Fix CUSPARSE (Consistency)
-          sudo ln -sf "$CUSPARSE_LIB/libcusparse.so.12" /usr/local/cuda/lib64/libcusparse.so.12
-          
-          # 4. Minimal LD_LIBRARY_PATH
-          # We point ONLY to the system path. We do NOT include torch paths.
-          # - Milvus finds system libstdc++ in /usr/lib64 (Implicit default).
-          # - PyTorch finds its specific GPU libs in /usr/local/cuda/lib64 (via our symlinks).
-          export LD_LIBRARY_PATH="/usr/lib64:/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
+          # Debug output to confirm
+          echo "LD_LIBRARY_PATH is: $LD_LIBRARY_PATH"
           
           # 3. Run Tests
           cd tests
