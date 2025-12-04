@@ -132,8 +132,13 @@ jobs:
           CUSPARSE_LIB="$SITE_PACKAGES/nvidia/cusparse/lib"
           # Core PyTorch libs (libtorch_cuda.so, etc.)
           TORCH_LIB="$SITE_PACKAGES/torch/lib"
+
+          # 3. THE FIX: Force load the System C++ Standard Library
+          # This prevents the "Open local milvus failed" crash by ensuring the
+          # database binary uses the system libstdc++ it was compiled against.
+          export LD_PRELOAD=/usr/lib64/libstdc++.so.6
           
-          # 3. THE COMPLETE SANDWICH PATH
+          # 4. THE COMPLETE SANDWICH PATH
           # Layer 1: System Standard (/usr/lib64). 
           #          - Usage: Milvus (libstdc++, libaio).
           #          - Safety: We deleted the bad libnccl here in previous step, so PyTorch is safe.
