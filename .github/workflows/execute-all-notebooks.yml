@@ -128,7 +128,7 @@ jobs:
           TORCH_LIB="$SITE_PACKAGES/torch/lib"
           CUSPARSE_LIB="$SITE_PACKAGES/nvidia/cusparse/lib"
           
-          export LD_LIBRARY_PATH="$NCCL_LIB:$TORCH_LIB:$CUSPARSE_LIB:/usr/local/cuda/lib64:/usr/lib64:$LD_LIBRARY_PATH"
+          export LD_LIBRARY_PATH="/usr/lib64:$NCCL_LIB:$TORCH_LIB:$CUSPARSE_LIB:/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
           
           # 3. Run Tests
           cd tests
