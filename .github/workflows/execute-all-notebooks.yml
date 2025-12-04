@@ -144,7 +144,7 @@ jobs:
           # We point ONLY to the system path. We do NOT include torch paths.
           # - Milvus finds system libstdc++ in /usr/lib64 (Implicit default).
           # - PyTorch finds its specific GPU libs in /usr/local/cuda/lib64 (via our symlinks).
-          export LD_LIBRARY_PATH="/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
+          export LD_LIBRARY_PATH="/usr/lib64:/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
           
           # 3. Run Tests
           cd tests
