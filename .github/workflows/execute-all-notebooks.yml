@@ -122,6 +122,12 @@ jobs:
         run: |
           export PYTHONPATH="$(pwd):$PYTHONPATH"
           
+          # --- FIX FOR MILVUS CRASH ---
+          # Milvus Lite crashes with 'basic_string: construction from null' if it can't find a valid home/temp dir.
+          # We force it to use a specific writable directory.
+          export MILVUS_LITE_WORK_DIR=/tmp/milvus_lite_work
+          mkdir -p $MILVUS_LITE_WORK_DIR
+          
           # 1. Find the pip installation folder
           SITE_PACKAGES=$(/usr/bin/python3.11 -m pip show nvidia-nccl-cu12 | grep Location | awk '{print $2}')
           
