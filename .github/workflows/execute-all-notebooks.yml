@@ -144,7 +144,7 @@ jobs:
           # Layer 3: System CUDA (/usr/local/cuda/lib64).
           #          - Usage: Docling (libcusparselt).
           
-          export LD_LIBRARY_PATH="/usr/lib64:$NCCL_LIB:$TORCH_LIB:$NVSHMEM_LIB:$CUSPARSE_LIB:/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
+          export LD_LIBRARY_PATH="/usr/lib64:$NCCL_LIB:$NVSHMEM_LIB:$CUSPARSE_LIB:/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
           
           # Debug output to confirm
           echo "LD_LIBRARY_PATH is: $LD_LIBRARY_PATH"
