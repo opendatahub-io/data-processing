@@ -3,7 +3,8 @@ from dataclasses import dataclass, field
 from multiprocessing import Pool
 import multiprocessing as mp
 
-if mp.get_start_method(allow_none=True) != 'spawn':
+# Only use spawn method if CUDA is available, otherwise use default method
+if torch.cuda.is_available() and mp.get_start_method(allow_none=True) != 'spawn':
     mp.set_start_method('spawn', force=True)
     
 from typing import Any, Dict, List, TypedDict, TypeVar, Union
