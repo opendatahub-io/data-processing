@@ -123,6 +123,10 @@ jobs:
           export PYTHONPATH="$(pwd):$PYTHONPATH"
           # 1. Find the pip installation folder
           SITE_PACKAGES=$(/usr/bin/python3.11 -m pip show nvidia-nccl-cu12 | grep Location | awk '{print $2}')
+          if [ -z "$SITE_PACKAGES" ]; then
+           echo "ERROR: nvidia-nccl-cu12 not found. Cannot construct LD_LIBRARY_PATH."
+           exit 1
+          fi
           
           # 2. Define the specific folders for the GPU libraries
           NCCL_LIB="$SITE_PACKAGES/nvidia/nccl/lib"
@@ -160,7 +164,7 @@ jobs:
           role-session-name: odh-data-processing  # For tracking in CloudTrail
 
       - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v4.3.2
+        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.4.3
         with:
           mode: stop
           github-token: "${{ secrets.DATA_PROCESSING_GH_PERSONAL_ACCESS_TOKEN }}"

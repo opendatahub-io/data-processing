@@ -20,7 +20,7 @@ def get_test_parameters(notebook_path: Path = None):
     
     # Default parameters
     default_params = {
-        "files": [],  # specify files to use for the notebook
+        "files": [],  # specify files to use for the notebook. setting it to empty list will use the notebook's own files
     }
     
     # Notebook-specific parameters
@@ -30,13 +30,9 @@ def get_test_parameters(notebook_path: Path = None):
         
         notebook_specific_params = {
             "subset-selection.ipynb": {
-                "input_files": [str(test_dir / "assets" / "subset-selection" / "combined_cut_50x.jsonl")],
-                "testing_mode": True
+                "input_files": [str(test_dir / "assets" / "subset-selection" / "combined_cut_50x.jsonl")],#shuf -n 100 of the actual file
+                "testing_mode": True #This is set for model download to work
             },
-            # Add more notebook-specific parameters here as needed
-            # "document-conversion-standard.ipynb": {
-            #     "files": ["https://example.com/sample.pdf"]
-            # }
         }
         
         # Return notebook-specific params if available, otherwise default

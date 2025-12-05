@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-# Notebooks to temporarily skip due to environment/dependency issues
+# Notebooks to temporarily skip 
 SKIP_FOR_NOW = []
 
 def get_notebook_files():
@@ -24,10 +24,10 @@ def get_notebook_files():
     # Convert to Path objects and filter out any non-existent files
     notebook_paths = [Path(f) for f in notebook_files if Path(f).exists()]
     
-    # Filter out problematic notebooks for now
+    # Filter out problematic notebooks temporarily
     filtered_notebooks = [
         nb for nb in notebook_paths 
-        if not any(skip_name in nb.name for skip_name in SKIP_FOR_NOW)
+        if nb.name not in SKIP_FOR_NOW
     ]
     
     print(f"Found {len(notebook_paths)} total notebooks, running {len(filtered_notebooks)} (skipped {len(notebook_paths) - len(filtered_notebooks)})")
