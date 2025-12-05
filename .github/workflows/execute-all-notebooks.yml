@@ -121,46 +121,25 @@ jobs:
       - name: Execute Notebooks
         run: |
           export PYTHONPATH="$(pwd):$PYTHONPATH"
+          # 1. Find the pip installation folder
+          SITE_PACKAGES=$(/usr/bin/python3.11 -m pip show nvidia-nccl-cu12 | grep Location | awk '{print $2}')
           
-          # --- FIX FOR MILVUS CRASH ---
-          # Milvus Lite crashes with 'basic_string: construction from null' if it can't find a valid home/temp dir.
-          # We force it to use a specific writable directory.
+          # 2. Define the specific folders for the GPU libraries
+          NCCL_LIB="$SITE_PACKAGES/nvidia/nccl/lib"
+          NVSHMEM_LIB="$SITE_PACKAGES/nvidia/nvshmem/lib"
+          CUSPARSE_LIB="$SITE_PACKAGES/nvidia/cusparse/lib"
+          
+          # 3. Set up the Environment for Milvus (Crash prevention)
           export MILVUS_LITE_WORK_DIR=/tmp/milvus_lite_work
           mkdir -p $MILVUS_LITE_WORK_DIR
           export HOME=$MILVUS_LITE_WORK_DIR
           export XDG_CACHE_HOME=$MILVUS_LITE_WORK_DIR
-          
-          # 1. Find the pip installation folder
-          SITE_PACKAGES=$(/usr/bin/python3.11 -m pip show nvidia-nccl-cu12 | grep Location | awk '{print $2}')
-          
-          # 2. Define ALL bundled library paths
-          # NVIDIA-specific libs (Network/Math)
-          NCCL_LIB="$SITE_PACKAGES/nvidia/nccl/lib"
-          NVSHMEM_LIB="$SITE_PACKAGES/nvidia/nvshmem/lib"
-          CUSPARSE_LIB="$SITE_PACKAGES/nvidia/cusparse/lib"
 
-          # 3. THE FIX: Force load the System C++ Standard Library
-          # This prevents the "Open local milvus failed" crash by ensuring the
-          # database binary uses the system libstdc++ it was compiled against.
-          export LD_PRELOAD=/usr/lib64/libstdc++.so.6
-          
-          # 4. THE COMPLETE SANDWICH PATH
-          # Layer 1: System Standard (/usr/lib64). 
-          #          - Usage: Milvus (libstdc++, libaio).
-          #          - Safety: We deleted the bad libnccl here in previous step, so PyTorch is safe.
-          
-          # Layer 2: Bundled Pip Libs.
-          #          - Usage: PyTorch (libnccl, libnvshmem, libtorch_cuda).
-          
-          # Layer 3: System CUDA (/usr/local/cuda/lib64).
-          #          - Usage: Docling (libcusparselt).
-          
-          export LD_LIBRARY_PATH="/usr/lib64:$NCCL_LIB:$NVSHMEM_LIB:$CUSPARSE_LIB:/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
-          
-          # Debug output to confirm
-          echo "LD_LIBRARY_PATH is: $LD_LIBRARY_PATH"
-          
-          # 3. Run Tests
+          # 4. The "Sandwich" Library Path
+          # - /usr/lib64: FIRST. Milvus gets system libstdc++.
+          # - Nvidia Libs: SECOND. PyTorch gets its bundled GPU libs.
+          # - System CUDA: THIRD. Docling gets libcusparselt.
+          export LD_LIBRARY_PATH="/usr/lib64:$NCCL_LIB:$NVSHMEM_LIB:$CUSPARSE_LIB:/usr/local/cuda/lib64:$LD_LIBRARY_PATH" 
           cd tests
           /usr/bin/python3.11 -m pytest test_notebook_execution.py -v --tb=short
   stop-ec2-runner:
