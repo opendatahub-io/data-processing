@@ -164,9 +164,10 @@ jobs:
           role-session-name: odh-data-processing  # For tracking in CloudTrail
 
       - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@fcfb31a5760dad1314a64a0e172b78ec6fc8a17e # v2.4.3
+        uses: machulav/ec2-github-runner@a6dbcefcf8a31a861f5e078bb153ed332130c512 # v2.4.3
         with:
           mode: stop
           github-token: "${{ secrets.DATA_PROCESSING_GH_PERSONAL_ACCESS_TOKEN }}"
           label: ${{ needs.launch-ec2-runner.outputs.label }}
           ec2-instance-id: ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}
+
