@@ -127,6 +127,8 @@ jobs:
           # We force it to use a specific writable directory.
           export MILVUS_LITE_WORK_DIR=/tmp/milvus_lite_work
           mkdir -p $MILVUS_LITE_WORK_DIR
+          export HOME=$MILVUS_LITE_WORK_DIR
+          export XDG_CACHE_HOME=$MILVUS_LITE_WORK_DIR
           
           # 1. Find the pip installation folder
           SITE_PACKAGES=$(/usr/bin/python3.11 -m pip show nvidia-nccl-cu12 | grep Location | awk '{print $2}')
@@ -136,8 +138,6 @@ jobs:
           NCCL_LIB="$SITE_PACKAGES/nvidia/nccl/lib"
           NVSHMEM_LIB="$SITE_PACKAGES/nvidia/nvshmem/lib"
           CUSPARSE_LIB="$SITE_PACKAGES/nvidia/cusparse/lib"
-          # Core PyTorch libs (libtorch_cuda.so, etc.)
-          TORCH_LIB="$SITE_PACKAGES/torch/lib"
 
           # 3. THE FIX: Force load the System C++ Standard Library
           # This prevents the "Open local milvus failed" crash by ensuring the
