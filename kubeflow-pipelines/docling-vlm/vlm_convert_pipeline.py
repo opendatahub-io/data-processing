@@ -30,6 +30,7 @@ def convert_pipeline(
     docling_timeout_per_document: int = 300,
     docling_image_export_mode: str = "embedded",
     docling_remote_model_enabled: bool = False,
+    docling_accelerator_device: str = "auto",
     # Chunking params - enable chunking after conversion
     docling_chunk_enabled: bool = False,
     docling_chunk_max_tokens: int = 512,
@@ -75,6 +76,7 @@ def convert_pipeline(
             image_export_mode=docling_image_export_mode,
             remote_model_enabled=docling_remote_model_enabled,
             remote_model_secret_mount_path=remote_model_secret_mount_path,
+            accelerator_device=docling_accelerator_device,
         )
         converter.set_caching_options(False)
         converter.set_memory_request("1G")

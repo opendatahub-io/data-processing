@@ -22,6 +22,7 @@ def docling_convert_vlm(
     timeout_per_document: int = 300,
     remote_model_enabled: bool = False,
     remote_model_secret_mount_path: str = "/mnt/secrets",
+    accelerator_device: str = "auto",
 ):
     """
     Convert a list of PDF files to JSON and Markdown using Docling (VLM Pipeline).
@@ -70,6 +71,17 @@ def docling_convert_vlm(
     artifacts_path_p = Path(artifacts_path.path)
     output_path_p = Path(output_path.path)
     output_path_p.mkdir(parents=True, exist_ok=True)
+
+    device_map = {
+        "auto": AcceleratorDevice.AUTO,
+        "cpu": AcceleratorDevice.CPU,
+        "gpu": AcceleratorDevice.CUDA,
+    }
+    dev = accelerator_device.lower()
+    if dev not in device_map:
+        raise ValueError(
+            f"Invalid accelerator_device: {accelerator_device}. Must be one of {sorted(device_map.keys())}"
+        )
 
     input_pdfs = [input_path_p / name for name in pdf_filenames]
 
@@ -162,7 +174,7 @@ def docling_convert_vlm(
     pipeline_options.artifacts_path = artifacts_path_p
     pipeline_options.document_timeout = float(timeout_per_document)
     pipeline_options.accelerator_options = AcceleratorOptions(
-        num_threads=num_threads, device=AcceleratorDevice.AUTO
+        num_threads=num_threads, device=device_map[dev]
     )
 
     doc_converter = DocumentConverter(

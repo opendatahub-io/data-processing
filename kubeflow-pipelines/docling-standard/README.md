@@ -10,6 +10,7 @@ Download the [compiled YAML file](standard_convert_pipeline_compiled.yaml?raw=1)
 
 The following configuration options are available as KFP parameters when you _Create run_:
 
+- `docling_accelerator_device`: Device to use for acceleration (`auto`, `cpu`, `gpu`). Default: `auto`.
 - `docling_enrich_code`: Enable the code enrichment model in the pipeline.
 - `docling_enrich_formula`: Enable the formula enrichment model in the pipeline.
 - `docling_enrich_picture_classes`: Enable the picture classification enrichment model in the pipeline.

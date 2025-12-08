@@ -39,6 +39,7 @@ def convert_pipeline(
     docling_enrich_formula: bool = False,
     docling_enrich_picture_classes: bool = False,
     docling_enrich_picture_description: bool = False,
+    docling_accelerator_device: str = "auto",
     # Chunking params - enable chunking after conversion
     docling_chunk_enabled: bool = False,
     docling_chunk_max_tokens: int = 512,
@@ -91,6 +92,7 @@ def convert_pipeline(
             enrich_formula=docling_enrich_formula,
             enrich_picture_classes=docling_enrich_picture_classes,
             enrich_picture_description=docling_enrich_picture_description,
+            accelerator_device=docling_accelerator_device,
         )
         converter.set_caching_options(False)
         converter.set_memory_request("1G")

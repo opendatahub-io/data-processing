@@ -30,6 +30,7 @@ def docling_convert_standard(
     enrich_formula: bool = False,
     enrich_picture_classes: bool = False,
     enrich_picture_description: bool = False,
+    accelerator_device: str = "auto",
 ):
     """
     Convert a list of PDF files to JSON and Markdown using Docling (Standard Pipeline).
@@ -123,6 +124,16 @@ def docling_convert_standard(
         "ocrmac": OcrMacOptions,
         "rapidocr": RapidOcrOptions,
     }
+    device_map = {
+        "auto": AcceleratorDevice.AUTO,
+        "cpu": AcceleratorDevice.CPU,
+        "gpu": AcceleratorDevice.CUDA,
+    }
+    dev = accelerator_device.lower()
+    if dev not in device_map:
+        raise ValueError(
+            f"Invalid accelerator_device: {accelerator_device}. Must be one of {sorted(device_map.keys())}"
+        )
 
     input_path_p = Path(input_path.path)
     artifacts_path_p = Path(artifacts_path.path)
@@ -152,7 +163,7 @@ def docling_convert_standard(
     pipeline_options.table_structure_options.mode = TableFormerMode(table_mode)
     pipeline_options.document_timeout = float(timeout_per_document)
     pipeline_options.accelerator_options = AcceleratorOptions(
-        num_threads=num_threads, device=AcceleratorDevice.AUTO
+        num_threads=num_threads, device=device_map[dev]
     )
 
     backend_to_impl = {

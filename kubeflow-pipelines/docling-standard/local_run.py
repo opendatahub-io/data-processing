@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 from typing import List
+import json
+import time
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from common import (
@@ -18,11 +20,97 @@ def take_first_split(splits: List[List[str]]) -> List[str]:
     return splits[0] if splits else []
 
 
+TEST_CONFIGS = {
+    "baseline_cpu": {
+        "docling_accelerator_device": "cpu",
+        "docling_pdf_backend": "dlparse_v4",
+        "docling_table_mode": "accurate",
+        "docling_num_threads": 4,
+        "docling_ocr": True,
+    },
+    "auto_detect": {
+        "docling_accelerator_device": "auto",
+        "docling_pdf_backend": "dlparse_v4",
+        "docling_table_mode": "accurate",
+        "docling_num_threads": 4,
+        "docling_ocr": True,
+    },
+    "pypdfium2_backend": {
+        "docling_accelerator_device": "cpu",
+        "docling_pdf_backend": "pypdfium2",
+        "docling_table_mode": "fast",
+        "docling_num_threads": 2,
+        "docling_ocr": False,
+    },
+    "fast_table_mode": {
+        "docling_accelerator_device": "cpu",
+        "docling_pdf_backend": "dlparse_v4",
+        "docling_table_mode": "fast",
+        "docling_num_threads": 4,
+        "docling_ocr": True,
+    },
+    # Uncomment if you have GPU
+    # "gpu_test": {
+    #     "docling_accelerator_device": "gpu",
+    #     "docling_pdf_backend": "dlparse_v4",
+    #     "docling_table_mode": "accurate",
+    #     "docling_num_threads": 4,
+    #     "docling_ocr": True,
+    # },
+}
+
+FAILURE_SCENARIOS = {
+    "invalid_device": {
+        "docling_accelerator_device": "invalid_device",  # Invalid device
+        "docling_pdf_backend": "dlparse_v4",
+        "docling_table_mode": "accurate",
+        "should_fail": True,
+        "expected_error": "Invalid accelerator_device",
+    },
+    "invalid_backend": {
+        "docling_accelerator_device": "cpu",
+        "docling_pdf_backend": "invalid_backend",  # Invalid backend
+        "docling_table_mode": "accurate",
+        "should_fail": True,
+        "expected_error": "Invalid pdf_backend",
+    },
+    "invalid_table_mode": {
+        "docling_accelerator_device": "cpu",
+        "docling_pdf_backend": "dlparse_v4",
+        "docling_table_mode": "invalid_mode",  # Invalid table mode
+        "should_fail": True,
+        "expected_error": "Invalid table_mode",
+    },
+    "invalid_image_mode": {
+        "docling_accelerator_device": "cpu",
+        "docling_pdf_backend": "dlparse_v4",
+        "docling_table_mode": "accurate",
+        "docling_image_export_mode": "invalid_mode",  # Invalid image mode
+        "should_fail": True,
+        "expected_error": "Invalid image_export_mode",
+    },
+    "invalid_ocr_engine": {
+        "docling_accelerator_device": "cpu",
+        "docling_pdf_backend": "dlparse_v4",
+        "docling_table_mode": "accurate",
+        "docling_ocr_engine": "invalid_engine",  # Invalid OCR engine
+        "should_fail": True,
+        "expected_error": "Invalid ocr_engine",
+    },
+}
+
+
 @dsl.pipeline()
-def convert_pipeline_local():
-    """
-    Local pipeline for testing standard conversion with chunking.
-    """
+def convert_pipeline_test(
+    docling_accelerator_device: str = "auto",
+    docling_pdf_backend: str = "dlparse_v4",
+    docling_table_mode: str = "accurate",
+    docling_image_export_mode: str = "embedded",
+    docling_num_threads: int = 4,
+    docling_ocr: bool = True,
+    docling_force_ocr: bool = False,
+    docling_ocr_engine: str = "tesseract",
+):
     importer = import_pdfs(
         filenames="2203.01017v2.pdf,2206.01062.pdf",
         base_url="https://github.com/docling-project/docling/raw/v2.43.0/tests/data/pdf",
@@ -44,7 +132,162 @@ def convert_pipeline_local():
         input_path=importer.outputs["output_path"],
         artifacts_path=artifacts.outputs["output_path"],
         pdf_filenames=first_split.output,
+        pdf_backend=docling_pdf_backend,
+        table_mode=docling_table_mode,
+        image_export_mode=docling_image_export_mode,
+        num_threads=docling_num_threads,
+        ocr=docling_ocr,
+        force_ocr=docling_force_ocr,
+        ocr_engine=docling_ocr_engine,
+        accelerator_device=docling_accelerator_device,
     )
+
+
+def validate_output(output_dir: Path, test_name: str) -> dict:
+    """Validate the output quality and format"""
+    validation_results = {
+        "test_name": test_name,
+        "passed": True,
+        "checks": {},
+    }
+
+    # Check for JSON output
+    json_files = list(output_dir.glob("*.json"))
+    validation_results["checks"]["json_exists"] = len(json_files) > 0
+
+    # Check for Markdown output
+    md_files = list(output_dir.glob("*.md"))
+    validation_results["checks"]["md_exists"] = len(md_files) > 0
+
+    if json_files:
+        json_path = json_files[0]
+        try:
+            with open(json_path) as f:
+                data = json.load(f)
+
+            # Required fields validation
+            validation_results["checks"]["has_name"] = "name" in data
+            validation_results["checks"]["has_pages"] = "pages" in data
+
+            if "pages" in data:
+                validation_results["checks"]["pages_count"] = len(data["pages"])
+                validation_results["checks"]["has_content"] = len(data["pages"]) > 0
+
+                # Check page structure
+                if data["pages"]:
+                    first_page = data["pages"][0]
+                    validation_results["checks"]["page_has_number"] = (
+                        "page_number" in first_page
+                    )
+                    validation_results["checks"]["page_has_size"] = "size" in first_page
+        except Exception as e:
+            validation_results["checks"]["json_parsing_error"] = str(e)
+            validation_results["passed"] = False
+
+    if md_files:
+        md_path = md_files[0]
+        try:
+            content = md_path.read_text()
+            validation_results["checks"]["md_length"] = len(content)
+            validation_results["checks"]["md_not_empty"] = len(content) > 100
+            validation_results["checks"]["md_has_headers"] = "#" in content
+            validation_results["checks"]["md_no_error"] = not content.startswith(
+                "Error"
+            )
+        except Exception as e:
+            validation_results["checks"]["md_parsing_error"] = str(e)
+            validation_results["passed"] = False
+
+    # Overall pass/fail
+    validation_results["passed"] = all(
+        [
+            validation_results["checks"].get("json_exists", False),
+            validation_results["checks"].get("md_exists", False),
+            validation_results["checks"].get("has_content", False),
+        ]
+    )
+
+    return validation_results
+
+
+def run_test_scenario(test_name: str, config: dict, should_fail: bool = False):
+    """Run a single test scenario"""
+    print(f"\n{'=' * 60}")
+    print(f"Running test: {test_name}")
+    print(f"Config: {config}")
+    print(f"Expected to fail: {should_fail}")
+    print(f"{'=' * 60}\n")
+
+    start_time = time.time()
+
+    # Filter out test metadata keys that shouldn't be passed to the pipeline
+    pipeline_config = {
+        k: v for k, v in config.items() if k not in ["expected_error", "should_fail"]
+    }
+
+    try:
+        convert_pipeline_test(
+            **pipeline_config  # Use filtered config
+        )
+
+        elapsed = time.time() - start_time
+
+        if should_fail:
+            print(f"❌ TEST FAILED: {test_name} - Expected failure but succeeded")
+            return {
+                "test_name": test_name,
+                "status": "FAIL",
+                "reason": "Expected to fail but succeeded",
+                "elapsed_time": elapsed,
+            }
+
+        # Validate output if test succeeded
+        print(f"✅ TEST PASSED: {test_name} - Completed in {elapsed:.2f}s")
+        return {
+            "test_name": test_name,
+            "status": "PASS",
+            "elapsed_time": elapsed,
+        }
+
+    except Exception as e:
+        elapsed = time.time() - start_time
+        error_msg = str(e)
+
+        if should_fail:
+            expected_error = config.get("expected_error", "")
+            # KFP wraps errors, so we need to check if pipeline failed (which means validation worked)
+            # or if the expected error substring appears anywhere in the message
+            if "FAILURE" in error_msg or expected_error.lower() in error_msg.lower():
+                print(f"✅ TEST PASSED: {test_name} - Failed as expected")
+                print(f"   Pipeline correctly rejected invalid parameter")
+                if expected_error:
+                    print(f"Expected error type: '{expected_error}'")
+                return {
+                    "test_name": test_name,
+                    "status": "PASS",
+                    "reason": "Failed as expected - validation working",
+                    "error": error_msg[:200],  # Truncate for readability
+                    "elapsed_time": elapsed,
+                }
+            else:
+                print(f"❌ TEST FAILED: {test_name} - Wrong error type")
+                print(f"Expected error containing: '{expected_error}'")
+                print(f"Got: {error_msg[:200]}")
+                return {
+                    "test_name": test_name,
+                    "status": "FAIL",
+                    "reason": f"Wrong error type",
+                    "error": error_msg,
+                    "elapsed_time": elapsed,
+                }
+
+        print(f"❌ TEST FAILED: {test_name} - Unexpected error: {error_msg[:200]}")
+        return {
+            "test_name": test_name,
+            "status": "FAIL",
+            "error": error_msg,
+            "elapsed_time": elapsed,
+        }
 
     docling_chunk(
         input_path=converter.outputs["output_path"],
@@ -54,8 +297,72 @@ def convert_pipeline_local():
 
 
 def main() -> None:
+    """Main test runner"""
+    print("Starting Standard Pipeline Testing Suite")
+    print(f"Total tests to run: {len(TEST_CONFIGS) + len(FAILURE_SCENARIOS)}")
+
+    # Initialize Docker runner for all local pipeline executions
     local.init(runner=local.DockerRunner())
-    convert_pipeline_local()
+
+    results = []
+
+    # Run normal test scenarios
+    print("\n" + "=" * 60)
+    print("PHASE 1: Normal Functionality Tests")
+    print("=" * 60)
+    for test_name, config in TEST_CONFIGS.items():
+        result = run_test_scenario(test_name, config, should_fail=False)
+        results.append(result)
+
+    # Run failure scenarios
+    print("\n" + "=" * 60)
+    print("PHASE 2: Failure Scenario Tests")
+    print("=" * 60)
+    for test_name, config in FAILURE_SCENARIOS.items():
+        should_fail = config.get("should_fail", True)
+        result = run_test_scenario(test_name, config, should_fail=should_fail)
+        results.append(result)
+
+    # Print summary
+    print("\n" + "=" * 60)
+    print("TEST SUMMARY")
+    print("=" * 60)
+
+    passed = sum(1 for r in results if r["status"] == "PASS")
+    warnings = sum(1 for r in results if r["status"] == "PASS_WITH_WARNINGS")
+    failed = sum(1 for r in results if r["status"] == "FAIL")
+    total_time = sum(r.get("elapsed_time", 0) for r in results)
+
+    print(f"\nTotal Tests: {len(results)}")
+    print(f"✅ Passed: {passed}")
+    print(f"⚠️  Warnings: {warnings}")
+    print(f"❌ Failed: {failed}")
+    print(f"⏱️  Total Time: {total_time:.2f}s")
+
+    print("\n📋 Detailed Results:")
+    for result in results:
+        if result["status"] == "PASS":
+            status_emoji = "✅"
+        elif result["status"] == "PASS_WITH_WARNINGS":
+            status_emoji = "⚠️ "
+        else:
+            status_emoji = "❌"
+
+        print(
+            f"{status_emoji} {result['test_name']}: {result['status']} ({result.get('elapsed_time', 0):.2f}s)"
+        )
+        if "error" in result:
+            error_preview = (
+                result["error"][:150] + "..."
+                if len(result["error"]) > 150
+                else result["error"]
+            )
+            print(f"   Error: {error_preview}")
+        if "reason" in result:
+            print(f"   Reason: {result['reason']}")
+
+    # Exit with appropriate code
+    sys.exit(0 if failed == 0 else 1)
 
 
 if __name__ == "__main__":

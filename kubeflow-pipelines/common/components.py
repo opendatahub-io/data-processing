@@ -28,6 +28,7 @@ def import_pdfs(
     """
     import os  # pylint: disable=import-outside-toplevel
     from pathlib import Path  # pylint: disable=import-outside-toplevel
+    import time  # pylint: disable=import-outside-toplevel
 
     import boto3  # pylint: disable=import-outside-toplevel
     import requests  # pylint: disable=import-outside-toplevel
@@ -125,16 +126,39 @@ def import_pdfs(
         if not base_url:
             raise ValueError("base_url must be provided")
 
+        max_retries = 3
+        retry_delay_sec = 5
+
         for filename in filenames_list:
             url = f"{base_url.rstrip('/')}/{filename.lstrip('/')}"
             dest = output_path_p / filename
-            print(f"import-test-pdfs: downloading {url} -> {dest}", flush=True)
-            with requests.get(url, stream=True, timeout=30) as resp:
-                resp.raise_for_status()
-                with dest.open("wb") as f:
-                    for chunk in resp.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
+
+            for attempt in range(1, max_retries + 1):
+                try:
+                    print(
+                        f"import-test-pdfs: downloading {url} -> {dest} "
+                        f"(attempt {attempt}/{max_retries})",
+                        flush=True,
+                    )
+                    with requests.get(url, stream=True, timeout=30) as resp:
+                        resp.raise_for_status()
+                        with dest.open("wb") as f:
+                            for chunk in resp.iter_content(chunk_size=8192):
+                                if chunk:
+                                    f.write(chunk)
+                    break
+                except requests.exceptions.RequestException as exc:  # type: ignore[attr-defined]
+                    # Network / HTTP errors are the main reason this component can be flaky
+                    if attempt == max_retries:
+                        raise RuntimeError(
+                            f"Failed to download {url} after {max_retries} attempts"
+                        ) from exc
+                    print(
+                        f"import-test-pdfs: error downloading {url}: {exc}. "
+                        f"Retrying in {retry_delay_sec} seconds...",
+                        flush=True,
+                    )
+                    time.sleep(retry_delay_sec)
 
     print("import-test-pdfs: done", flush=True)
 

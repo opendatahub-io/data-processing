@@ -2,6 +2,7 @@
 # Name: data-processing-docling-standard-pipeline
 # Description: Docling standard convert pipeline by the Data Processing Team
 # Inputs:
+#    docling_accelerator_device: str [Default: 'auto']
 #    docling_allow_external_plugins: bool [Default: False]
 #    docling_chunk_enabled: bool [Default: False]
 #    docling_chunk_max_tokens: int [Default: 512.0]
@@ -112,6 +113,10 @@ components:
             schemaVersion: 0.0.1
           description: Path to the input directory containing PDF files.
       parameters:
+        accelerator_device:
+          defaultValue: auto
+          isOptional: true
+          parameterType: STRING
         allow_external_plugins:
           defaultValue: false
           description: Whether or not to allow external plugins.
@@ -243,6 +248,8 @@ components:
               input_path:
                 componentInputArtifact: pipelinechannel--import-pdfs-output_path
             parameters:
+              accelerator_device:
+                componentInputParameter: pipelinechannel--docling_accelerator_device
               allow_external_plugins:
                 componentInputParameter: pipelinechannel--docling_allow_external_plugins
               enrich_code:
@@ -288,6 +295,8 @@ components:
           parameterType: LIST
         pipelinechannel--create-pdf-splits-Output-loop-item:
           parameterType: LIST
+        pipelinechannel--docling_accelerator_device:
+          parameterType: STRING
         pipelinechannel--docling_allow_external_plugins:
           parameterType: BOOLEAN
         pipelinechannel--docling_chunk_enabled:
@@ -541,22 +550,23 @@ deploymentSpec:
           \ ocr: bool = True,\n    force_ocr: bool = False,\n    ocr_engine: str =\
           \ \"easyocr\",\n    allow_external_plugins: bool = False,\n    enrich_code:\
           \ bool = False,\n    enrich_formula: bool = False,\n    enrich_picture_classes:\
-          \ bool = False,\n    enrich_picture_description: bool = False,\n):\n   \
-          \ \"\"\"\n    Convert a list of PDF files to JSON and Markdown using Docling\
-          \ (Standard Pipeline).\n\n    Args:\n        input_path: Path to the input\
-          \ directory containing PDF files.\n        artifacts_path: Path to the directory\
-          \ containing Docling models.\n        output_path: Path to the output directory\
-          \ for converted JSON and Markdown files.\n        pdf_filenames: List of\
-          \ PDF file names to process.\n        pdf_backend: Backend to use for PDF\
-          \ processing.\n        image_export_mode: Mode to export images.\n     \
-          \   table_mode: Mode to detect tables.\n        num_threads: Number of threads\
-          \ to use per document processing.\n        timeout_per_document: Timeout\
-          \ per document processing.\n        ocr: Whether or not to use OCR if needed.\n\
-          \        force_ocr: Whether or not to force OCR.\n        ocr_engine: Engine\
-          \ to use for OCR.\n        allow_external_plugins: Whether or not to allow\
-          \ external plugins.\n        enrich_code: Whether or not to enrich code.\n\
-          \        enrich_formula: Whether or not to enrich formula.\n        enrich_picture_classes:\
-          \ Whether or not to enrich picture classes.\n        enrich_picture_description:\
+          \ bool = False,\n    enrich_picture_description: bool = False,\n    accelerator_device:\
+          \ str = \"auto\",\n):\n    \"\"\"\n    Convert a list of PDF files to JSON\
+          \ and Markdown using Docling (Standard Pipeline).\n\n    Args:\n       \
+          \ input_path: Path to the input directory containing PDF files.\n      \
+          \  artifacts_path: Path to the directory containing Docling models.\n  \
+          \      output_path: Path to the output directory for converted JSON and\
+          \ Markdown files.\n        pdf_filenames: List of PDF file names to process.\n\
+          \        pdf_backend: Backend to use for PDF processing.\n        image_export_mode:\
+          \ Mode to export images.\n        table_mode: Mode to detect tables.\n \
+          \       num_threads: Number of threads to use per document processing.\n\
+          \        timeout_per_document: Timeout per document processing.\n      \
+          \  ocr: Whether or not to use OCR if needed.\n        force_ocr: Whether\
+          \ or not to force OCR.\n        ocr_engine: Engine to use for OCR.\n   \
+          \     allow_external_plugins: Whether or not to allow external plugins.\n\
+          \        enrich_code: Whether or not to enrich code.\n        enrich_formula:\
+          \ Whether or not to enrich formula.\n        enrich_picture_classes: Whether\
+          \ or not to enrich picture classes.\n        enrich_picture_description:\
           \ Whether or not to enrich picture description.\n    \"\"\"\n    from importlib\
           \ import import_module  # pylint: disable=import-outside-toplevel\n    from\
           \ pathlib import Path  # pylint: disable=import-outside-toplevel\n\n   \
@@ -592,15 +602,19 @@ deploymentSpec:
           \    ocr_engine_map = {\n        \"easyocr\": EasyOcrOptions,\n        \"\
           tesseract_cli\": TesseractCliOcrOptions,\n        \"tesseract\": TesseractOcrOptions,\n\
           \        \"ocrmac\": OcrMacOptions,\n        \"rapidocr\": RapidOcrOptions,\n\
-          \    }\n\n    input_path_p = Path(input_path.path)\n    artifacts_path_p\
-          \ = Path(artifacts_path.path)\n    output_path_p = Path(output_path.path)\n\
-          \    output_path_p.mkdir(parents=True, exist_ok=True)\n\n    input_pdfs\
-          \ = [input_path_p / name for name in pdf_filenames]\n    print(\n      \
-          \  f\"docling-standard-convert: starting with backend='{pdf_backend}', files={len(input_pdfs)}\"\
-          ,\n        flush=True,\n    )\n\n    pipeline_options = PdfPipelineOptions()\n\
-          \    pipeline_options.artifacts_path = artifacts_path_p\n    pipeline_options.do_code_enrichment\
-          \ = enrich_code\n    pipeline_options.do_formula_enrichment = enrich_formula\n\
-          \    pipeline_options.do_picture_classification = enrich_picture_classes\n\
+          \    }\n    device_map = {\n        \"auto\": AcceleratorDevice.AUTO,\n\
+          \        \"cpu\": AcceleratorDevice.CPU,\n        \"gpu\": AcceleratorDevice.CUDA,\n\
+          \    }\n    dev = accelerator_device.lower()\n    if dev not in device_map:\n\
+          \        raise ValueError(\n            f\"Invalid accelerator_device: {accelerator_device}.\
+          \ Must be one of {sorted(device_map.keys())}\"\n        )\n\n    input_path_p\
+          \ = Path(input_path.path)\n    artifacts_path_p = Path(artifacts_path.path)\n\
+          \    output_path_p = Path(output_path.path)\n    output_path_p.mkdir(parents=True,\
+          \ exist_ok=True)\n\n    input_pdfs = [input_path_p / name for name in pdf_filenames]\n\
+          \    print(\n        f\"docling-standard-convert: starting with backend='{pdf_backend}',\
+          \ files={len(input_pdfs)}\",\n        flush=True,\n    )\n\n    pipeline_options\
+          \ = PdfPipelineOptions()\n    pipeline_options.artifacts_path = artifacts_path_p\n\
+          \    pipeline_options.do_code_enrichment = enrich_code\n    pipeline_options.do_formula_enrichment\
+          \ = enrich_formula\n    pipeline_options.do_picture_classification = enrich_picture_classes\n\
           \    pipeline_options.do_picture_description = enrich_picture_description\n\
           \    pipeline_options.do_ocr = ocr\n    if ocr and ocr_engine in ocr_engine_map:\n\
           \        OcrOptionsClass = ocr_engine_map[ocr_engine]\n        ocr_options_instance\
@@ -610,7 +624,7 @@ deploymentSpec:
           \    pipeline_options.generate_page_images = True\n    pipeline_options.table_structure_options.mode\
           \ = TableFormerMode(table_mode)\n    pipeline_options.document_timeout =\
           \ float(timeout_per_document)\n    pipeline_options.accelerator_options\
-          \ = AcceleratorOptions(\n        num_threads=num_threads, device=AcceleratorDevice.AUTO\n\
+          \ = AcceleratorOptions(\n        num_threads=num_threads, device=device_map[dev]\n\
           \    )\n\n    backend_to_impl = {\n        PdfBackend.PYPDFIUM2.value: (\n\
           \            \"docling.backend.pypdfium2_backend\",\n            \"PyPdfiumDocumentBackend\"\
           ,\n        ),\n        PdfBackend.DLPARSE_V1.value: (\n            \"docling.backend.docling_parse_backend\"\
@@ -749,21 +763,21 @@ deploymentSpec:
           \ import from S3.\n        s3_secret_mount_path: Path to the secret mount\
           \ path for the S3 credentials.\n    \"\"\"\n    import os  # pylint: disable=import-outside-toplevel\n\
           \    from pathlib import Path  # pylint: disable=import-outside-toplevel\n\
-          \n    import boto3  # pylint: disable=import-outside-toplevel\n    import\
-          \ requests  # pylint: disable=import-outside-toplevel\n\n    filenames_list\
-          \ = [name.strip() for name in filenames.split(\",\") if name.strip()]\n\
-          \    if not filenames_list:\n        raise ValueError(\n            \"filenames\
-          \ must contain at least one filename (comma-separated)\"\n        )\n\n\
-          \    output_path_p = Path(output_path.path)\n    output_path_p.mkdir(parents=True,\
-          \ exist_ok=True)\n\n    if from_s3:\n        if not os.path.exists(s3_secret_mount_path):\n\
-          \            raise ValueError(\n                f\"Secret for S3 should\
-          \ be mounted in {s3_secret_mount_path}\"\n            )\n\n        s3_endpoint_url_secret\
-          \ = \"S3_ENDPOINT_URL\"\n        s3_endpoint_url_file_path = os.path.join(\n\
-          \            s3_secret_mount_path, s3_endpoint_url_secret\n        )\n \
-          \       if os.path.isfile(s3_endpoint_url_file_path):\n            with\
-          \ open(s3_endpoint_url_file_path) as f:\n                s3_endpoint_url\
-          \ = f.read()\n        else:\n            raise ValueError(\n           \
-          \     f\"Key {s3_endpoint_url_secret} not defined in secret {s3_secret_mount_path}\"\
+          \    import time  # pylint: disable=import-outside-toplevel\n\n    import\
+          \ boto3  # pylint: disable=import-outside-toplevel\n    import requests\
+          \  # pylint: disable=import-outside-toplevel\n\n    filenames_list = [name.strip()\
+          \ for name in filenames.split(\",\") if name.strip()]\n    if not filenames_list:\n\
+          \        raise ValueError(\n            \"filenames must contain at least\
+          \ one filename (comma-separated)\"\n        )\n\n    output_path_p = Path(output_path.path)\n\
+          \    output_path_p.mkdir(parents=True, exist_ok=True)\n\n    if from_s3:\n\
+          \        if not os.path.exists(s3_secret_mount_path):\n            raise\
+          \ ValueError(\n                f\"Secret for S3 should be mounted in {s3_secret_mount_path}\"\
+          \n            )\n\n        s3_endpoint_url_secret = \"S3_ENDPOINT_URL\"\n\
+          \        s3_endpoint_url_file_path = os.path.join(\n            s3_secret_mount_path,\
+          \ s3_endpoint_url_secret\n        )\n        if os.path.isfile(s3_endpoint_url_file_path):\n\
+          \            with open(s3_endpoint_url_file_path) as f:\n              \
+          \  s3_endpoint_url = f.read()\n        else:\n            raise ValueError(\n\
+          \                f\"Key {s3_endpoint_url_secret} not defined in secret {s3_secret_mount_path}\"\
           \n            )\n\n        s3_access_key_secret = \"S3_ACCESS_KEY\"\n  \
           \      s3_access_key_file_path = os.path.join(\n            s3_secret_mount_path,\
           \ s3_access_key_secret\n        )\n        if os.path.isfile(s3_access_key_file_path):\n\
@@ -796,14 +810,28 @@ deploymentSpec:
           \ = output_path_p / filename\n            print(f\"import-test-pdfs: downloading\
           \ {orig} -> {dest} from s3\", flush=True)\n            s3_client.download_file(s3_bucket,\
           \ orig, dest)\n    else:\n        if not base_url:\n            raise ValueError(\"\
-          base_url must be provided\")\n\n        for filename in filenames_list:\n\
-          \            url = f\"{base_url.rstrip('/')}/{filename.lstrip('/')}\"\n\
-          \            dest = output_path_p / filename\n            print(f\"import-test-pdfs:\
-          \ downloading {url} -> {dest}\", flush=True)\n            with requests.get(url,\
-          \ stream=True, timeout=30) as resp:\n                resp.raise_for_status()\n\
-          \                with dest.open(\"wb\") as f:\n                    for chunk\
-          \ in resp.iter_content(chunk_size=8192):\n                        if chunk:\n\
-          \                            f.write(chunk)\n\n    print(\"import-test-pdfs:\
+          base_url must be provided\")\n\n        max_retries = 3\n        retry_delay_sec\
+          \ = 5\n\n        for filename in filenames_list:\n            url = f\"\
+          {base_url.rstrip('/')}/{filename.lstrip('/')}\"\n            dest = output_path_p\
+          \ / filename\n\n            for attempt in range(1, max_retries + 1):\n\
+          \                try:\n                    print(\n                    \
+          \    f\"import-test-pdfs: downloading {url} -> {dest} \"\n             \
+          \           f\"(attempt {attempt}/{max_retries})\",\n                  \
+          \      flush=True,\n                    )\n                    with requests.get(url,\
+          \ stream=True, timeout=30) as resp:\n                        resp.raise_for_status()\n\
+          \                        with dest.open(\"wb\") as f:\n                \
+          \            for chunk in resp.iter_content(chunk_size=8192):\n        \
+          \                        if chunk:\n                                   \
+          \ f.write(chunk)\n                    break\n                except requests.exceptions.RequestException\
+          \ as exc:  # type: ignore[attr-defined]\n                    # Network /\
+          \ HTTP errors are the main reason this component can be flaky\n        \
+          \            if attempt == max_retries:\n                        raise RuntimeError(\n\
+          \                            f\"Failed to download {url} after {max_retries}\
+          \ attempts\"\n                        ) from exc\n                    print(\n\
+          \                        f\"import-test-pdfs: error downloading {url}: {exc}.\
+          \ \"\n                        f\"Retrying in {retry_delay_sec} seconds...\"\
+          ,\n                        flush=True,\n                    )\n        \
+          \            time.sleep(retry_delay_sec)\n\n    print(\"import-test-pdfs:\
           \ done\", flush=True)\n\n"
         image: quay.io/amaredia/aipcc-docling-image
 pipelineInfo:
@@ -866,6 +894,8 @@ root:
               taskOutputParameter:
                 outputParameterKey: Output
                 producerTask: create-pdf-splits
+            pipelinechannel--docling_accelerator_device:
+              componentInputParameter: docling_accelerator_device
             pipelinechannel--docling_allow_external_plugins:
               componentInputParameter: docling_allow_external_plugins
             pipelinechannel--docling_chunk_enabled:
@@ -923,6 +953,10 @@ root:
           name: import-pdfs
   inputDefinitions:
     parameters:
+      docling_accelerator_device:
+        defaultValue: auto
+        isOptional: true
+        parameterType: STRING
       docling_allow_external_plugins:
         defaultValue: false
         isOptional: true

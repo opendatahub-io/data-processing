@@ -2,6 +2,7 @@
 # Name: data-processing-docling-vlm-pipeline
 # Description: Docling VLM convert pipeline by the Data Processing Team
 # Inputs:
+#    docling_accelerator_device: str [Default: 'auto']
 #    docling_chunk_enabled: bool [Default: False]
 #    docling_chunk_max_tokens: int [Default: 512.0]
 #    docling_chunk_merge_peers: bool [Default: True]
@@ -103,6 +104,10 @@ components:
             schemaVersion: 0.0.1
           description: Path to the input directory containing PDF files.
       parameters:
+        accelerator_device:
+          defaultValue: auto
+          isOptional: true
+          parameterType: STRING
         image_export_mode:
           defaultValue: embedded
           description: Mode to export images.
@@ -194,6 +199,8 @@ components:
               input_path:
                 componentInputArtifact: pipelinechannel--import-pdfs-output_path
             parameters:
+              accelerator_device:
+                componentInputParameter: pipelinechannel--docling_accelerator_device
               image_export_mode:
                 componentInputParameter: pipelinechannel--docling_image_export_mode
               num_threads:
@@ -224,6 +231,8 @@ components:
           parameterType: LIST
         pipelinechannel--create-pdf-splits-Output-loop-item:
           parameterType: LIST
+        pipelinechannel--docling_accelerator_device:
+          parameterType: STRING
         pipelinechannel--docling_chunk_enabled:
           parameterType: BOOLEAN
         pipelinechannel--docling_chunk_max_tokens:
@@ -456,24 +465,24 @@ deploymentSpec:
           \    pdf_filenames: List[str],\n    num_threads: int = 4,\n    image_export_mode:\
           \ str = \"embedded\",\n    timeout_per_document: int = 300,\n    remote_model_enabled:\
           \ bool = False,\n    remote_model_secret_mount_path: str = \"/mnt/secrets\"\
-          ,\n):\n    \"\"\"\n    Convert a list of PDF files to JSON and Markdown\
-          \ using Docling (VLM Pipeline).\n\n    Args:\n        input_path: Path to\
-          \ the input directory containing PDF files.\n        artifacts_path: Path\
-          \ to the directory containing Docling models.\n        output_path: Path\
-          \ to the output directory for converted JSON and Markdown files.\n     \
-          \   pdf_filenames: List of PDF file names to process.\n        num_threads:\
-          \ Number of threads to use per document processing.\n        timeout_per_document:\
-          \ Timeout per document processing.\n        image_export_mode: Mode to export\
-          \ images.\n        remote_model_enabled: Whether or not to use a remote\
-          \ model.\n        remote_model_secret_mount_path: Path to the remote model\
-          \ secret mount path.\n    \"\"\"\n    import os\n    from pathlib import\
-          \ Path\n\n    from docling.datamodel.accelerator_options import (  # pylint:\
-          \ disable=import-outside-toplevel  # noqa: PLC0415, E402\n        AcceleratorDevice,\n\
-          \        AcceleratorOptions,\n    )\n    from docling.datamodel.base_models\
-          \ import (\n        InputFormat,\n    )  # pylint: disable=import-outside-toplevel\
-          \  # noqa: PLC0415, E402\n    from docling.datamodel.pipeline_options import\
-          \ (  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402\n\
-          \        VlmPipelineOptions,\n        smoldocling_vlm_conversion_options,\n\
+          ,\n    accelerator_device: str = \"auto\",\n):\n    \"\"\"\n    Convert\
+          \ a list of PDF files to JSON and Markdown using Docling (VLM Pipeline).\n\
+          \n    Args:\n        input_path: Path to the input directory containing\
+          \ PDF files.\n        artifacts_path: Path to the directory containing Docling\
+          \ models.\n        output_path: Path to the output directory for converted\
+          \ JSON and Markdown files.\n        pdf_filenames: List of PDF file names\
+          \ to process.\n        num_threads: Number of threads to use per document\
+          \ processing.\n        timeout_per_document: Timeout per document processing.\n\
+          \        image_export_mode: Mode to export images.\n        remote_model_enabled:\
+          \ Whether or not to use a remote model.\n        remote_model_secret_mount_path:\
+          \ Path to the remote model secret mount path.\n    \"\"\"\n    import os\n\
+          \    from pathlib import Path\n\n    from docling.datamodel.accelerator_options\
+          \ import (  # pylint: disable=import-outside-toplevel  # noqa: PLC0415,\
+          \ E402\n        AcceleratorDevice,\n        AcceleratorOptions,\n    )\n\
+          \    from docling.datamodel.base_models import (\n        InputFormat,\n\
+          \    )  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402\n\
+          \    from docling.datamodel.pipeline_options import (  # pylint: disable=import-outside-toplevel\
+          \  # noqa: PLC0415, E402\n        VlmPipelineOptions,\n        smoldocling_vlm_conversion_options,\n\
           \    )\n    from docling.datamodel.pipeline_options_vlm_model import ( \
           \ # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402\n   \
           \     ApiVlmOptions,\n        ResponseFormat,\n    )\n    from docling.document_converter\
@@ -485,11 +494,16 @@ deploymentSpec:
           \    )  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402\n\
           \n    input_path_p = Path(input_path.path)\n    artifacts_path_p = Path(artifacts_path.path)\n\
           \    output_path_p = Path(output_path.path)\n    output_path_p.mkdir(parents=True,\
-          \ exist_ok=True)\n\n    input_pdfs = [input_path_p / name for name in pdf_filenames]\n\
-          \n    print(\n        f\"docling-vlm-convert: starting with backend='vlm',\
-          \ files={len(input_pdfs)}\",\n        flush=True,\n    )\n    if not pdf_filenames:\n\
-          \        raise ValueError(\n            \"pdf_filenames must be provided\
-          \ with the list of file names to process\"\n        )\n\n    allowed_image_export_modes\
+          \ exist_ok=True)\n\n    device_map = {\n        \"auto\": AcceleratorDevice.AUTO,\n\
+          \        \"cpu\": AcceleratorDevice.CPU,\n        \"gpu\": AcceleratorDevice.CUDA,\n\
+          \    }\n    dev = accelerator_device.lower()\n    if dev not in device_map:\n\
+          \        raise ValueError(\n            f\"Invalid accelerator_device: {accelerator_device}.\
+          \ Must be one of {sorted(device_map.keys())}\"\n        )\n\n    input_pdfs\
+          \ = [input_path_p / name for name in pdf_filenames]\n\n    print(\n    \
+          \    f\"docling-vlm-convert: starting with backend='vlm', files={len(input_pdfs)}\"\
+          ,\n        flush=True,\n    )\n    if not pdf_filenames:\n        raise\
+          \ ValueError(\n            \"pdf_filenames must be provided with the list\
+          \ of file names to process\"\n        )\n\n    allowed_image_export_modes\
           \ = {e.value for e in ImageRefMode}\n    if image_export_mode not in allowed_image_export_modes:\n\
           \        raise ValueError(\n            f\"Invalid image_export_mode: {image_export_mode}.\
           \ Must be one of {sorted(allowed_image_export_modes)}\"\n        )\n\n \
@@ -533,11 +547,11 @@ deploymentSpec:
           \n    pipeline_cls = VlmPipeline\n    pipeline_options.artifacts_path =\
           \ artifacts_path_p\n    pipeline_options.document_timeout = float(timeout_per_document)\n\
           \    pipeline_options.accelerator_options = AcceleratorOptions(\n      \
-          \  num_threads=num_threads, device=AcceleratorDevice.AUTO\n    )\n\n   \
-          \ doc_converter = DocumentConverter(\n        format_options={\n       \
-          \     InputFormat.PDF: PdfFormatOption(\n                pipeline_cls=pipeline_cls,\n\
-          \                pipeline_options=pipeline_options,\n            )\n   \
-          \     }\n    )\n\n    results = doc_converter.convert_all(input_pdfs, raises_on_error=True)\n\
+          \  num_threads=num_threads, device=device_map[dev]\n    )\n\n    doc_converter\
+          \ = DocumentConverter(\n        format_options={\n            InputFormat.PDF:\
+          \ PdfFormatOption(\n                pipeline_cls=pipeline_cls,\n       \
+          \         pipeline_options=pipeline_options,\n            )\n        }\n\
+          \    )\n\n    results = doc_converter.convert_all(input_pdfs, raises_on_error=True)\n\
           \n    for result in results:\n        doc_filename = result.input.file.stem\n\
           \n        output_json_path = output_path_p / f\"{doc_filename}.json\"\n\
           \        print(f\"docling-vlm-convert: saving {output_json_path}\", flush=True)\n\
@@ -662,21 +676,21 @@ deploymentSpec:
           \ import from S3.\n        s3_secret_mount_path: Path to the secret mount\
           \ path for the S3 credentials.\n    \"\"\"\n    import os  # pylint: disable=import-outside-toplevel\n\
           \    from pathlib import Path  # pylint: disable=import-outside-toplevel\n\
-          \n    import boto3  # pylint: disable=import-outside-toplevel\n    import\
-          \ requests  # pylint: disable=import-outside-toplevel\n\n    filenames_list\
-          \ = [name.strip() for name in filenames.split(\",\") if name.strip()]\n\
-          \    if not filenames_list:\n        raise ValueError(\n            \"filenames\
-          \ must contain at least one filename (comma-separated)\"\n        )\n\n\
-          \    output_path_p = Path(output_path.path)\n    output_path_p.mkdir(parents=True,\
-          \ exist_ok=True)\n\n    if from_s3:\n        if not os.path.exists(s3_secret_mount_path):\n\
-          \            raise ValueError(\n                f\"Secret for S3 should\
-          \ be mounted in {s3_secret_mount_path}\"\n            )\n\n        s3_endpoint_url_secret\
-          \ = \"S3_ENDPOINT_URL\"\n        s3_endpoint_url_file_path = os.path.join(\n\
-          \            s3_secret_mount_path, s3_endpoint_url_secret\n        )\n \
-          \       if os.path.isfile(s3_endpoint_url_file_path):\n            with\
-          \ open(s3_endpoint_url_file_path) as f:\n                s3_endpoint_url\
-          \ = f.read()\n        else:\n            raise ValueError(\n           \
-          \     f\"Key {s3_endpoint_url_secret} not defined in secret {s3_secret_mount_path}\"\
+          \    import time  # pylint: disable=import-outside-toplevel\n\n    import\
+          \ boto3  # pylint: disable=import-outside-toplevel\n    import requests\
+          \  # pylint: disable=import-outside-toplevel\n\n    filenames_list = [name.strip()\
+          \ for name in filenames.split(\",\") if name.strip()]\n    if not filenames_list:\n\
+          \        raise ValueError(\n            \"filenames must contain at least\
+          \ one filename (comma-separated)\"\n        )\n\n    output_path_p = Path(output_path.path)\n\
+          \    output_path_p.mkdir(parents=True, exist_ok=True)\n\n    if from_s3:\n\
+          \        if not os.path.exists(s3_secret_mount_path):\n            raise\
+          \ ValueError(\n                f\"Secret for S3 should be mounted in {s3_secret_mount_path}\"\
+          \n            )\n\n        s3_endpoint_url_secret = \"S3_ENDPOINT_URL\"\n\
+          \        s3_endpoint_url_file_path = os.path.join(\n            s3_secret_mount_path,\
+          \ s3_endpoint_url_secret\n        )\n        if os.path.isfile(s3_endpoint_url_file_path):\n\
+          \            with open(s3_endpoint_url_file_path) as f:\n              \
+          \  s3_endpoint_url = f.read()\n        else:\n            raise ValueError(\n\
+          \                f\"Key {s3_endpoint_url_secret} not defined in secret {s3_secret_mount_path}\"\
           \n            )\n\n        s3_access_key_secret = \"S3_ACCESS_KEY\"\n  \
           \      s3_access_key_file_path = os.path.join(\n            s3_secret_mount_path,\
           \ s3_access_key_secret\n        )\n        if os.path.isfile(s3_access_key_file_path):\n\
@@ -709,14 +723,28 @@ deploymentSpec:
           \ = output_path_p / filename\n            print(f\"import-test-pdfs: downloading\
           \ {orig} -> {dest} from s3\", flush=True)\n            s3_client.download_file(s3_bucket,\
           \ orig, dest)\n    else:\n        if not base_url:\n            raise ValueError(\"\
-          base_url must be provided\")\n\n        for filename in filenames_list:\n\
-          \            url = f\"{base_url.rstrip('/')}/{filename.lstrip('/')}\"\n\
-          \            dest = output_path_p / filename\n            print(f\"import-test-pdfs:\
-          \ downloading {url} -> {dest}\", flush=True)\n            with requests.get(url,\
-          \ stream=True, timeout=30) as resp:\n                resp.raise_for_status()\n\
-          \                with dest.open(\"wb\") as f:\n                    for chunk\
-          \ in resp.iter_content(chunk_size=8192):\n                        if chunk:\n\
-          \                            f.write(chunk)\n\n    print(\"import-test-pdfs:\
+          base_url must be provided\")\n\n        max_retries = 3\n        retry_delay_sec\
+          \ = 5\n\n        for filename in filenames_list:\n            url = f\"\
+          {base_url.rstrip('/')}/{filename.lstrip('/')}\"\n            dest = output_path_p\
+          \ / filename\n\n            for attempt in range(1, max_retries + 1):\n\
+          \                try:\n                    print(\n                    \
+          \    f\"import-test-pdfs: downloading {url} -> {dest} \"\n             \
+          \           f\"(attempt {attempt}/{max_retries})\",\n                  \
+          \      flush=True,\n                    )\n                    with requests.get(url,\
+          \ stream=True, timeout=30) as resp:\n                        resp.raise_for_status()\n\
+          \                        with dest.open(\"wb\") as f:\n                \
+          \            for chunk in resp.iter_content(chunk_size=8192):\n        \
+          \                        if chunk:\n                                   \
+          \ f.write(chunk)\n                    break\n                except requests.exceptions.RequestException\
+          \ as exc:  # type: ignore[attr-defined]\n                    # Network /\
+          \ HTTP errors are the main reason this component can be flaky\n        \
+          \            if attempt == max_retries:\n                        raise RuntimeError(\n\
+          \                            f\"Failed to download {url} after {max_retries}\
+          \ attempts\"\n                        ) from exc\n                    print(\n\
+          \                        f\"import-test-pdfs: error downloading {url}: {exc}.\
+          \ \"\n                        f\"Retrying in {retry_delay_sec} seconds...\"\
+          ,\n                        flush=True,\n                    )\n        \
+          \            time.sleep(retry_delay_sec)\n\n    print(\"import-test-pdfs:\
           \ done\", flush=True)\n\n"
         image: quay.io/amaredia/aipcc-docling-image
 pipelineInfo:
@@ -778,6 +806,8 @@ root:
               taskOutputParameter:
                 outputParameterKey: Output
                 producerTask: create-pdf-splits
+            pipelinechannel--docling_accelerator_device:
+              componentInputParameter: docling_accelerator_device
             pipelinechannel--docling_chunk_enabled:
               componentInputParameter: docling_chunk_enabled
             pipelinechannel--docling_chunk_max_tokens:
@@ -817,6 +847,10 @@ root:
           name: import-pdfs
   inputDefinitions:
     parameters:
+      docling_accelerator_device:
+        defaultValue: auto
+        isOptional: true
+        parameterType: STRING
       docling_chunk_enabled:
         defaultValue: false
         isOptional: true
