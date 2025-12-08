@@ -3,3 +3,5 @@ nbstripout
 pytest
 nbformat
 papermill
+ipykernel
+jupyter

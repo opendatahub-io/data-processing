@@ -11,7 +11,11 @@ on:
         description: "Pull request number or branch name"
         required: true
         default: "main"
-
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "notebooks/**/*.ipynb"
+      - ".github/workflows/execute-all-notebooks.yml"
 env:
   INSTANCE_TYPE: "g6e.xlarge"
 
@@ -62,7 +66,6 @@ jobs:
               {"Key": "GitHubRef", "Value": "${{ github.ref }}"},
               {"Key": "GitHubPR", "Value": "${{ github.event.number }}"}
             ]
-
   execute-all-notebooks:
     needs:
       - launch-ec2-runner
@@ -70,9 +73,75 @@ jobs:
 
     steps:
       - name: Setup Environment
-        run: |
-          echo "hello. i'm running from inside of EC2 instance ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
+        run: echo "Running on EC2 ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
 
+      - uses: actions/checkout@v4
+
+      - name: Setup System Dependencies (Python + CUDA Runtime)
+        run: |
+          # 1. Install Python and basic tools
+          sudo dnf install -y gcc gcc-c++ make git-core python3.11 python3.11-devel python3-pip libaio
+          
+          # 2. Install base runtime libraries (required by libcusparselt)
+          sudo dnf install -y cuda-libraries-12-4
+          
+          # 3. Install the specific library Docling needs
+          sudo dnf install -y libcusparselt0-cuda-12.x86_64
+          sudo dnf install -y nvshmem || echo "NVSHMEM not in repo, relying on pip"
+          
+          # 4. THE SAFETY CHECK: Hide System NCCL
+          # We remove the system libnccl so that when we put system paths first in LD_LIBRARY_PATH,
+          # PyTorch won't accidentally find this incompatible version.
+          sudo find /usr/lib64 /usr/local/cuda-*/lib64 -name "libnccl.so*" -exec rm -f {} \;
+
+      - name: Install Python Dependencies
+        run: |
+          # Setup Pip
+          /usr/bin/python3.11 -m ensurepip --upgrade >/dev/null 2>&1 
+          /usr/bin/python3.11 -m pip install --upgrade pip setuptools wheel
+          
+          # 1. Install Requirements (Generic)
+          # We do this first so we can overwrite any bad CPU-versions it pulls in
+          /usr/bin/python3.11 -m pip install -r requirements-dev.txt
+          /usr/bin/python3.11 -m pip install -r scripts/subset_selection/requirements.txt
+          
+          # 2. Force Reinstall GPU-Specific Versions (From PyTorch Index)
+          # We run this separately so --index-url doesn't break other packages
+          /usr/bin/python3.11 -m pip install --force-reinstall \
+            torch torchvision torchaudio \
+            --index-url https://download.pytorch.org/whl/cu121
+            
+          # 3. Register Kernel
+          /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
+
+      - name: Execute Notebooks
+        run: |
+          export PYTHONPATH="$(pwd):$PYTHONPATH"
+          # 1. Find the pip installation folder
+          SITE_PACKAGES=$(/usr/bin/python3.11 -m pip show nvidia-nccl-cu12 | grep Location | awk '{print $2}')
+          if [ -z "$SITE_PACKAGES" ]; then
+           echo "ERROR: nvidia-nccl-cu12 not found. Cannot construct LD_LIBRARY_PATH."
+           exit 1
+          fi
+          
+          # 2. Define the specific folders for the GPU libraries
+          NCCL_LIB="$SITE_PACKAGES/nvidia/nccl/lib"
+          NVSHMEM_LIB="$SITE_PACKAGES/nvidia/nvshmem/lib"
+          CUSPARSE_LIB="$SITE_PACKAGES/nvidia/cusparse/lib"
+          
+          # 3. Set up the Environment for Milvus (Crash prevention)
+          export MILVUS_LITE_WORK_DIR=/tmp/milvus_lite_work
+          mkdir -p $MILVUS_LITE_WORK_DIR
+          export HOME=$MILVUS_LITE_WORK_DIR
+          export XDG_CACHE_HOME=$MILVUS_LITE_WORK_DIR
+
+          # 4. The "Sandwich" Library Path
+          # - /usr/lib64: FIRST. Milvus gets system libstdc++.
+          # - Nvidia Libs: SECOND. PyTorch gets its bundled GPU libs.
+          # - System CUDA: THIRD. Docling gets libcusparselt.
+          export LD_LIBRARY_PATH="/usr/lib64:$NCCL_LIB:$NVSHMEM_LIB:$CUSPARSE_LIB:/usr/local/cuda/lib64:$LD_LIBRARY_PATH" 
+          cd tests
+          /usr/bin/python3.11 -m pytest test_notebook_execution.py -v --tb=short
   stop-ec2-runner:
     permissions:
       id-token: write # This is required for OIDC (AWS auth)

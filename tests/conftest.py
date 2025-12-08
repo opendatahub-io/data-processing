@@ -7,16 +7,32 @@ from pathlib import Path
 
 import pytest
 
+# Notebooks to temporarily skip 
+SKIP_FOR_NOW = []
 
 def get_notebook_files():
     """Discover all notebook files in the notebooks directory."""
-    notebook_pattern = "notebooks/**/*.ipynb"
+    # Get the directory where this conftest.py file is located
+    test_dir = Path(__file__).parent
+    # Go up one level to the project root
+    project_root = test_dir.parent
+    
+    # Build the notebook pattern from project root
+    notebook_pattern = str(project_root / "notebooks" / "**" / "*.ipynb")
     notebook_files = glob.glob(notebook_pattern, recursive=True)
     
     # Convert to Path objects and filter out any non-existent files
     notebook_paths = [Path(f) for f in notebook_files if Path(f).exists()]
     
-    return notebook_paths
+    # Filter out problematic notebooks temporarily
+    filtered_notebooks = [
+        nb for nb in notebook_paths 
+        if nb.name not in SKIP_FOR_NOW
+    ]
+    
+    print(f"Found {len(notebook_paths)} total notebooks, running {len(filtered_notebooks)} (skipped {len(notebook_paths) - len(filtered_notebooks)})")
+    
+    return filtered_notebooks
 
 
 @pytest.fixture

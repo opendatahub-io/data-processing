@@ -1,6 +1,10 @@
 # Standard
 from dataclasses import dataclass, field
 from multiprocessing import Pool
+import multiprocessing as mp
+
+
+    
 from typing import Any, Dict, List, TypedDict, TypeVar, Union
 import gc
 import glob
@@ -17,6 +21,10 @@ import h5py
 import numpy as np
 import torch
 
+# Only use spawn method if CUDA is available, otherwise use default method
+if torch.cuda.is_available() and mp.get_start_method(allow_none=True) != 'spawn':
+    mp.set_start_method('spawn', force=True)
+    
 # Local
 from .encoders import get_encoder_class
 from .utils.subset_selection_utils import (
