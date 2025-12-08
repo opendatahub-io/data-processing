@@ -97,7 +97,7 @@ jobs:
       - name: Install Python Dependencies
         run: |
           # Setup Pip
-          /usr/bin/python3.11 -m ensurepip --upgrade >/dev/null 2>&1 || true
+          /usr/bin/python3.11 -m ensurepip --upgrade >/dev/null 2>&1 
           /usr/bin/python3.11 -m pip install --upgrade pip setuptools wheel
           
           # 1. Install Requirements (Generic)
@@ -111,11 +111,7 @@ jobs:
             torch torchvision torchaudio \
             --index-url https://download.pytorch.org/whl/cu121
             
-          # 3. Force Reinstall Standard Tools (From Default PyPI Index)
-          /usr/bin/python3.11 -m pip install \
-             papermill ipykernel jupyter "docling[chunking]" datasets pymilvus h5py
-          
-          # 4. Register Kernel
+          # 3. Register Kernel
           /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
 
       - name: Execute Notebooks
