@@ -70,6 +70,11 @@ jobs:
     needs:
       - launch-ec2-runner
     runs-on: ${{ needs.launch-ec2-runner.outputs.label }}
+    env:
+      MILVUS_LITE_WORK_DIR: "/tmp/milvus_lite_work"
+      HOME: "/tmp/milvus_lite_work"
+      XDG_CACHE_HOME: "/tmp/milvus_lite_work"
+      PYTHONPATH: ${{ github.workspace }}
 
     steps:
       - name: Setup Environment
@@ -107,9 +112,7 @@ jobs:
           
           # 2. Force Reinstall GPU-Specific Versions (From PyTorch Index)
           # We run this separately so --index-url doesn't break other packages
-          /usr/bin/python3.11 -m pip install --force-reinstall \
-            torch torchvision torchaudio \
-            --index-url https://download.pytorch.org/whl/cu121
+          /usr/bin/python3.11 -m pip install --force-reinstall -r tests/requirements-gpu.txt
             
           # 3. Register Kernel
           /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
@@ -130,10 +133,7 @@ jobs:
           CUSPARSE_LIB="$SITE_PACKAGES/nvidia/cusparse/lib"
           
           # 3. Set up the Environment for Milvus (Crash prevention)
-          export MILVUS_LITE_WORK_DIR=/tmp/milvus_lite_work
-          mkdir -p $MILVUS_LITE_WORK_DIR
-          export HOME=$MILVUS_LITE_WORK_DIR
-          export XDG_CACHE_HOME=$MILVUS_LITE_WORK_DIR
+          mkdir -p "${{ env.MILVUS_LITE_WORK_DIR }}"
 
           # 4. The "Sandwich" Library Path
           # - /usr/lib64: FIRST. Milvus gets system libstdc++.
