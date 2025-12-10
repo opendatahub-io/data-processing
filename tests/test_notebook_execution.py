@@ -13,19 +13,21 @@ import papermill as pm
 import pytest
 
 from conftest import get_notebook_files
+from typing import Optional
 
 
-def get_test_parameters(notebook_path: Path = None):
+def get_test_parameters(notebook_path: Optional[Path] = None):
     """Get test parameters for notebook execution, with notebook-specific overrides."""
     
-    # Default parameters
-    default_params = {
-        "files": [],  # specify files to use for the notebook. setting it to empty list will use the notebook's own files
+    # Override notebook-specific parameters
+    override_params = {
+        # specify files to use for the notebook. 
     }
     
     # Notebook-specific parameters
     if notebook_path:
-        # Get the test directory (where this file is located)
+        if not isinstance(notebook_path, Path):# type: ignore[unreachable]
+            raise ValueError(f"Notebook path must be a 'Path' object. Got: {type(notebook_path)}")
         test_dir = Path(__file__).parent
         
         notebook_specific_params = {
@@ -34,12 +36,11 @@ def get_test_parameters(notebook_path: Path = None):
                 "testing_mode": True #This is set for model download to work
             },
         }
-        
         # Return notebook-specific params if available, otherwise default
-        return notebook_specific_params.get(notebook_path.name, default_params)
+        return notebook_specific_params.get(notebook_path.name, override_params)
     
-    return default_params
-def execute_single_notebook(notebook_path: Path) -> bool:
+    return override_params
+def execute_single_notebook(notebook_path: Path,timeout: Optional[int] = 600) -> bool:
     """
     Execute a single notebook with papermill.
     
@@ -55,13 +56,12 @@ def execute_single_notebook(notebook_path: Path) -> bool:
     
     try:
         test_params = get_test_parameters(notebook_path)  # Pass notebook_path here
-        # Remove 'files' key if it's empty (let notebook use its own files)
-        if 'files' in test_params and not test_params['files']:
-            test_params = {k: v for k, v in test_params.items() if k != 'files'}
+        # inject the test parameters into the notebook
         pm.execute_notebook(
             input_path=str(notebook_path),
             output_path=str(output_path),
-            parameters=test_params
+            parameters=test_params,
+            timeout=timeout
         )
         return True
     except Exception as e:
@@ -73,7 +73,7 @@ def execute_single_notebook(notebook_path: Path) -> bool:
 
 @pytest.mark.parametrize("notebook_path", get_notebook_files(), 
                         ids=lambda path: str(path)) 
-def test_notebook_executes_without_error(notebook_path):
+def test_notebook_executes_without_error(notebook_path: Path,timeout: Optional[int] = 600):
     """Test that each notebook executes without errors."""
     
     # Skip backup/duplicate files
@@ -81,7 +81,7 @@ def test_notebook_executes_without_error(notebook_path):
         pytest.skip(f"Skipping backup/checkpoint file: {notebook_path}")
     
     # Execute the notebook
-    success = execute_single_notebook(notebook_path)
+    success = execute_single_notebook(notebook_path,timeout)
     assert success, f"Failed to execute notebook: {notebook_path}"
 
 

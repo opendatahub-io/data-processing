@@ -38,7 +38,6 @@ test-notebook-execution:
 test-notebooks: format-notebooks-check test-notebook-parameters test-notebook-execution
 	@echo "All notebook validations completed successfully (formatting, parameters, execution) :)"
 
-test-all:
+test-all: test-notebooks format-python-check
 	@echo "Running all tests..."
-	pytest tests/ -v
 	@echo "All tests passed :)"
