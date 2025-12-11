@@ -40,7 +40,7 @@ def get_text_block(text_list: list[Any], begin_pos: int, end_pos: int) -> str:
 def extract_qa_pairs(data):
     qa_pairs = []
     text_list = data["texts"]
-    title_list = filter(lambda x: json_util.is_title(x[1]["text"]), enumerate(text_list))
+    title_list = filter(lambda x: json_util.is_title(x[1]["text"]) and not json_util.is_toc(x[1]), enumerate(text_list))
     qhead_list = filter(lambda x: json_util.is_qhead(x[1]["text"]), enumerate(text_list))
     ahead_list = filter(lambda x: json_util.is_ahead(x[1]["text"]), enumerate(text_list))
     title_pos_list = [ti for (ti, title) in title_list]

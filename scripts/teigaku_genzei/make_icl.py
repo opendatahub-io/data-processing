@@ -83,6 +83,16 @@ def generate_ICL_example(
     icl_example = { **icl_document, **icl_qa_dict }
     return icl_example
 
+def make_icl(qa_df: pd.DataFrame, context_df: pd.DataFrame, short_context: bool) -> list[dict[str, Any]]:
+
+    ncontext_df = context_df.query("section != -1")
+   
+    icl_qa_index_sr = ncontext_df.apply(lambda row: generate_QA_combinations(row, NUM_ICL_QA_EXAMPLES), axis=1)
+    flatten_icl_qa_index_list = list(itertools.chain.from_iterable(icl_qa_index_sr))
+    icl_list = [generate_ICL_example(index_tuple, qa_df, ncontext_df, short_context) for index_tuple in flatten_icl_qa_index_list]
+
+    return icl_list
+
 def main()-> None:
 
     args = config()
@@ -94,11 +104,8 @@ def main()-> None:
 
     qa_df = pd.read_csv(input_qa_path, encoding="utf8")
     context_df = pd.read_csv(input_context_path, encoding="utf8")
-    ncontext_df = context_df.query("section != -1")
-    
-    icl_qa_index_sr = ncontext_df.apply(lambda row: generate_QA_combinations(row, NUM_ICL_QA_EXAMPLES), axis=1)
-    flatten_icl_qa_index_list = list(itertools.chain.from_iterable(icl_qa_index_sr))
-    icl_list = [generate_ICL_example(index_tuple, qa_df, ncontext_df, short_context) for index_tuple in flatten_icl_qa_index_list]
+
+    icl_list = make_icl(qa_df, context_df, short_context)
 
     jsonl_util.write_jsonl_file(output_icl_path, icl_list)
 

@@ -50,18 +50,7 @@ def extract_section_number(title: str) -> tuple[int, int]:
         return (int(section_num_str), int(subsection_num_str))
     return (0, 0)
 
-def main()-> None:
-
-    args = config()
-
-    option = args[ARG_OPTION]
-    input_qa_path = args[ARG_INPUT_QA_FILE]
-    input_glossary_path = args[ARG_INPUT_GLOSSARY_FILE]
-    output_context_path = args[ARG_OUTPUT_CONTEXT_FILE]
-
-    qa_df = pd.read_csv(input_qa_path, encoding="utf8")
-    glossary_df = pd.read_csv(input_glossary_path, encoding="utf8")
-
+def make_context(qa_df: pd.DataFrame, glossary_df: pd.DataFrame, option: str) -> pd.DataFrame:
     section_df = qa_df.apply(lambda x: pd.Series(extract_section_number(x["Title"]), index=["section", "subsection"]), axis=1)
     qas_df = pd.concat([qa_df, section_df], axis=1)
     section_gp = qas_df.groupby("section")
@@ -77,6 +66,22 @@ def main()-> None:
     qindex_list = [cast(int, df.index[0]) for (section, df) in section_gp] + a_qindex
     qlist_list = [json.dumps(df.index.to_list()) for (section, df) in section_gp] + [json.dumps([qi]) for qi in a_qindex]
     out_df = pd.DataFrame({"section": section_list, "qindex": qindex_list ,"qlist": qlist_list, "context": context_list})
+    return out_df
+
+def main()-> None:
+
+    args = config()
+
+    option = args[ARG_OPTION]
+    input_qa_path = args[ARG_INPUT_QA_FILE]
+    input_glossary_path = args[ARG_INPUT_GLOSSARY_FILE]
+    output_context_path = args[ARG_OUTPUT_CONTEXT_FILE]
+
+    qa_df = pd.read_csv(input_qa_path, encoding="utf8")
+    glossary_df = pd.read_csv(input_glossary_path, encoding="utf8")
+
+    out_df = make_context(qa_df, glossary_df, option)
+    
     out_df.to_csv(output_context_path, index=False, encoding="utf8")
 
 

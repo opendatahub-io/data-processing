@@ -38,17 +38,8 @@ def select_icl_sample(icl_df: pd.DataFrame, average_context_length: int, index: 
     ret_index = (idx - step) % len(icl_df)
     return cast(pd.Series, icl_df.iloc[ret_index])
 
-    
-def main()-> None:
 
-    args = config()
-    input_context_path = args[ARG_INPUT_CONTEXT_FILE]
-    input_icl_path = args[ARG_INPUT_ICL_FILE]
-    output_context_path = args[ARG_OUTPUT_SEED_FILE]
-    opt_join_method = args[ARG_JOIN_METHOD]
-
-    context_df = pd.read_csv(input_context_path, encoding="utf8")[["context", "qindex"]]
-    icl_list = jsonl_util.read_jsonl_file(input_icl_path)
+def make_seed(context_df: pd.DataFrame, icl_list: list[Any], opt_join_method: str) -> pd.DataFrame:
     icl_df = pd.DataFrame(icl_list)
 
     if opt_join_method == OPT_JOIN_METHOD_SLIDE:
@@ -108,6 +99,21 @@ def main()-> None:
     ], axis=1).rename(columns={
         "context": "document",
     })
+    return out_df
+
+def main()-> None:
+
+    args = config()
+    input_context_path = args[ARG_INPUT_CONTEXT_FILE]
+    input_icl_path = args[ARG_INPUT_ICL_FILE]
+    output_context_path = args[ARG_OUTPUT_SEED_FILE]
+    opt_join_method = args[ARG_JOIN_METHOD]
+
+    context_df = pd.read_csv(input_context_path, encoding="utf8")[["context", "qindex"]]
+    icl_list = jsonl_util.read_jsonl_file(input_icl_path)
+
+    out_df = make_seed(context_df, icl_list, opt_join_method)
+    
     out_df.to_json(output_context_path, orient="records", lines=True, force_ascii=False)
 
 if __name__ == "__main__":

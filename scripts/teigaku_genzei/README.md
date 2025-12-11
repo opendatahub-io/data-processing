@@ -22,11 +22,16 @@ may contain information derived from the above Teigaku Genzei documents with mod
 
 Neither Red Hat nor IBM is a licensee or licensor of such NTA's Teigaku Genzei documents.
 
-<!-- - IBM granite-3.3-8b-instruct did not use training data that is derived from these NTA's documents. -->
-<!-- - For example, if the fine-tuned model is used in a Tax QA system, then one should ensure that QA system displays the link to the source of the data and the existence of the modification to the data, etc. to all the end users of the QA system. -->
-
 Please download these two PDF files by yourself.
 
+# Example Jupyter notebook
+This document explains how to create a SDG seed file using command line shell scripts and python scripts.
+
+[`teigaku_genzei.ipynb`](./teigaku_genzei.ipynb) partially covers the same contents in this document, but can be done on a Jupyter notebook.
+- Common preprocessing of source document
+- SDG seed generation
+
+Other topics are provided in this document only, as those will need GPUs, or a separate environment.
 
 # Common preprocessing of source document
 
@@ -234,4 +239,16 @@ options:
 
 # Synthetic QA data generation for supervised fine-tuning
 - See a sample notebook in sdg_hub:  `sdg_hub/examples/knowledge_tuning/instructlab/knowledge_generation_and_mixing.ipynb`.
+- The generated SDG seed file (JSONL) can be directly used in the above notebook.
+- If you need a SDG seed file in YAML format, you can use `seed_jsonl_2_qna_yaml.py` for the conversion from JSONL to YAML.
 
+
+# Known issues.
+- Docling version compatibility
+  - sdg_hub 0.7.1 depends on docling >= 2.3.0. Thus, some newer version of Docling can be installed in a user's environment.
+  - We tested this example with the following docling versions, and found that each version of docling outputs a slightly different JSON file even though the input PDF file is the same. 
+    - docling 2.64.0
+    - docling 2.50.0
+    - docling 2.41.0
+  - We tried to mitigate such a difference in the post-processing scripts, but it is possible that this difference  quantitatively impacts the SDG seed file as well as the fine-tuned model.
+  - If you find that the text extraction by Docling does not work, we recommend you to try an older version such as docling 2.41.0.
