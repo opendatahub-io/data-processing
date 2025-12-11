@@ -32,7 +32,7 @@ jobs:
           # For pull_request_target on forks, ensure we check out the merge commit or default branch safely
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
