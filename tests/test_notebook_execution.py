@@ -29,7 +29,7 @@ def get_test_parameters(notebook_path: Optional[Path] = None):
         if not isinstance(notebook_path, Path):# type: ignore[unreachable]
             raise ValueError(f"Notebook path must be a 'Path' object. Got: {type(notebook_path)}")
         test_dir = Path(__file__).parent
-        
+        # Using str instead of f strings since it has better integartion with PATH object and adjusts the path sep according to the architecture instead of hard coding it
         notebook_specific_params = {
             "subset-selection.ipynb": {
                 "input_files": [str(test_dir / "assets" / "subset-selection" / "combined_cut_50x.jsonl")],#shuf -n 100 of the actual file
