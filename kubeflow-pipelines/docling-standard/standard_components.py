@@ -5,8 +5,9 @@ from typing import List
 # Add the parent directory to Python path to find common
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from kfp import dsl
 from common.constants import DOCLING_BASE_IMAGE
+from kfp import dsl
+
 
 @dsl.component(
     base_image=DOCLING_BASE_IMAGE,
@@ -52,29 +53,42 @@ def docling_convert_standard(
         enrich_picture_classes: Whether or not to enrich picture classes.
         enrich_picture_description: Whether or not to enrich picture description.
     """
-    import os # pylint: disable=import-outside-toplevel
-    from importlib import import_module # pylint: disable=import-outside-toplevel
-    from pathlib import Path # pylint: disable=import-outside-toplevel
+    from importlib import import_module  # pylint: disable=import-outside-toplevel
+    from pathlib import Path  # pylint: disable=import-outside-toplevel
 
-    from docling_core.types.doc.base import ImageRefMode  # pylint: disable=import-outside-toplevel
-    from docling.datamodel.base_models import InputFormat  # pylint: disable=import-outside-toplevel
+    from docling.datamodel.accelerator_options import (  # pylint: disable=import-outside-toplevel
+        AcceleratorDevice,
+        AcceleratorOptions,
+    )
+    from docling.datamodel.base_models import (
+        InputFormat,
+    )  # pylint: disable=import-outside-toplevel
     from docling.datamodel.pipeline_options import (  # pylint: disable=import-outside-toplevel
-        PdfPipelineOptions,
-        PdfBackend,
-        TableFormerMode,
         EasyOcrOptions,
-        TesseractCliOcrOptions,
-        TesseractOcrOptions,
         OcrEngine,
         OcrMacOptions,
+        PdfBackend,
+        PdfPipelineOptions,
         RapidOcrOptions,
+        TableFormerMode,
+        TesseractCliOcrOptions,
+        TesseractOcrOptions,
     )
-    from docling.document_converter import DocumentConverter, PdfFormatOption  # pylint: disable=import-outside-toplevel
-    from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions  # pylint: disable=import-outside-toplevel
-    from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline # pylint: disable=import-outside-toplevel
+    from docling.document_converter import (  # pylint: disable=import-outside-toplevel
+        DocumentConverter,
+        PdfFormatOption,
+    )
+    from docling.pipeline.standard_pdf_pipeline import (
+        StandardPdfPipeline,
+    )  # pylint: disable=import-outside-toplevel
+    from docling_core.types.doc.base import (
+        ImageRefMode,
+    )  # pylint: disable=import-outside-toplevel
 
     if not pdf_filenames:
-        raise ValueError("pdf_filenames must be provided with the list of file names to process")
+        raise ValueError(
+            "pdf_filenames must be provided with the list of file names to process"
+        )
 
     allowed_pdf_backends = {e.value for e in PdfBackend}
     if pdf_backend not in allowed_pdf_backends:
@@ -93,14 +107,14 @@ def docling_convert_standard(
         raise ValueError(
             f"Invalid image_export_mode: {image_export_mode}. Must be one of {sorted(allowed_image_export_modes)}"
         )
-    
+
     if not allow_external_plugins:
         allowed_ocr_engines = {e.value for e in OcrEngine}
         if ocr_engine not in allowed_ocr_engines:
             raise ValueError(
                 f"Invalid ocr_engine: {ocr_engine}. Must be one of {sorted(allowed_ocr_engines)}"
             )
-        
+
     # Dictionary to map the engine name string to the corresponding class
     ocr_engine_map = {
         "easyocr": EasyOcrOptions,
@@ -116,7 +130,10 @@ def docling_convert_standard(
     output_path_p.mkdir(parents=True, exist_ok=True)
 
     input_pdfs = [input_path_p / name for name in pdf_filenames]
-    print(f"docling-standard-convert: starting with backend='{pdf_backend}', files={len(input_pdfs)}", flush=True)
+    print(
+        f"docling-standard-convert: starting with backend='{pdf_backend}', files={len(input_pdfs)}",
+        flush=True,
+    )
 
     pipeline_options = PdfPipelineOptions()
     pipeline_options.artifacts_path = artifacts_path_p
@@ -177,10 +194,14 @@ def docling_convert_standard(
 
         output_json_path = output_path_p / f"{doc_filename}.json"
         print(f"docling-standard-convert: saving {output_json_path}", flush=True)
-        result.document.save_as_json(output_json_path, image_mode=ImageRefMode(image_export_mode))
+        result.document.save_as_json(
+            output_json_path, image_mode=ImageRefMode(image_export_mode)
+        )
 
         output_md_path = output_path_p / f"{doc_filename}.md"
         print(f"docling-standard-convert: saving {output_md_path}", flush=True)
-        result.document.save_as_markdown(output_md_path, image_mode=ImageRefMode(image_export_mode))
+        result.document.save_as_markdown(
+            output_md_path, image_mode=ImageRefMode(image_export_mode)
+        )
 
     print("docling-standard-convert: done", flush=True)

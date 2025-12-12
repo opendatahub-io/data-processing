@@ -4,20 +4,15 @@ from pathlib import Path
 # Add the parent directory to Python path to find common
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from kfp import dsl, compiler
-
 # Import common components from the shared module
-from common import (
-    import_pdfs,
-    create_pdf_splits,
-    download_docling_models,
-)
-
+from common import create_pdf_splits, download_docling_models, import_pdfs
+from kfp import compiler, dsl
 from standard_components import docling_convert_standard
 
+
 @dsl.pipeline(
-    name= "data-processing-docling-standard-pipeline",
-    description= "Docling standard convert pipeline by the Data Processing Team",
+    name="data-processing-docling-standard-pipeline",
+    description="Docling standard convert pipeline by the Data Processing Team",
 )
 def convert_pipeline(
     num_splits: int = 3,
@@ -40,7 +35,7 @@ def convert_pipeline(
     docling_enrich_picture_classes: bool = False,
     docling_enrich_picture_description: bool = False,
 ):
-    from kfp import kubernetes # pylint: disable=import-outside-toplevel
+    from kfp import kubernetes  # pylint: disable=import-outside-toplevel
 
     s3_secret_mount_path = "/mnt/secrets"
     importer = import_pdfs(
@@ -50,10 +45,12 @@ def convert_pipeline(
         s3_secret_mount_path=s3_secret_mount_path,
     )
     importer.set_caching_options(False)
-    kubernetes.use_secret_as_volume(importer,
-            secret_name="data-processing-docling-pipeline",
-            mount_path=s3_secret_mount_path,
-            optional=True)
+    kubernetes.use_secret_as_volume(
+        importer,
+        secret_name="data-processing-docling-pipeline",
+        mount_path=s3_secret_mount_path,
+        optional=True,
+    )
 
     pdf_splits = create_pdf_splits(
         input_path=importer.outputs["output_path"],

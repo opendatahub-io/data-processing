@@ -4,28 +4,9 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.13.0
     hooks:
-      - id: ruff
-        name: ruff-check
-        args: [--fix, --show-fixes]
-        types_or: [python]
       - id: ruff-format
         name: ruff-format
         types_or: [python]
-
-  # Import ordering (aligned with Black)
-  - repo: https://github.com/pycqa/isort
-    rev: 6.0.1
-    hooks:
-      - id: isort
-        types_or: [python]
-
-  # Canonical Python formatter
-  - repo: https://github.com/psf/black
-    rev: 24.8.0
-    hooks:
-      - id: black
-        types_or: [python]
-
   # Strip notebook outputs anywhere in repo
   - repo: https://github.com/kynan/nbstripout
     rev: 0.8.1

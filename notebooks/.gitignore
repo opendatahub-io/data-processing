@@ -1,0 +1,51 @@
+assets/
+*milvus_*
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+pip-wheel-metadata/
+
+# Environments
+.env
+*.env
+.venv/
+venv/
+env/
+
+# Tooling caches
+.mypy_cache/
+.pytype/
+.ruff_cache/
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+
+# Editors/IDEs
+.vscode/
+.idea/
+.history/
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Cursor
+.cursor/
+
+# Local runs / artifacts
+local_outputs/
+
+# Logs
+*.log
+logs/
+venv/

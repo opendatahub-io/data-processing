@@ -1,0 +1,21 @@
+# Core dependencies for subset selection scripts
+
+# Machine Learning & Embeddings
+torch>=2.0.0
+transformers>=4.41.2
+numpy>=1.24.0
+
+# Data Processing
+datasets>=2.18.0
+h5py>=3.12.1
+
+# Subset Selection
+# Note: this dependency has to be built from source
+submodlib-py
+
+# Templating
+jinja2>=3.1.0
+
+# Progress & Logging
+tqdm>=4.65.0
+

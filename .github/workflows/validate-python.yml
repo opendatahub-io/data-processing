@@ -1,0 +1,43 @@
+name: Python Formatting Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "**/*.py"
+      - ".pre-commit-config.yaml"
+      - "Makefile"
+      - "pyproject.toml"
+      - ".github/workflow/validate-python.yml"
+  pull_request_target:
+    types: [closed]
+    paths:
+      - "**/*.py"
+      - ".pre-commit-config.yaml"
+      - "Makefile"
+      - "pyproject.toml"
+      - ".github/workflow/validate-python.yml"
+
+jobs:
+  formatting-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # For pull_request_target on forks, ensure we check out the merge commit or default branch safely
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install python formatting test dependencies
+        run: pip install ruff
+
+      - name: Run Formatting Tests
+        run: make format-python-check

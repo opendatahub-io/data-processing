@@ -5,8 +5,9 @@ from typing import List
 # Add the parent directory to Python path to find common
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from kfp import dsl
 from common.constants import DOCLING_BASE_IMAGE
+from kfp import dsl
+
 
 @dsl.component(
     base_image=DOCLING_BASE_IMAGE,
@@ -39,16 +40,31 @@ def docling_convert_vlm(
     import os
     from pathlib import Path
 
-    from docling_core.types.doc.base import ImageRefMode  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402
-    from docling.datamodel.base_models import InputFormat  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402
+    from docling.datamodel.accelerator_options import (  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402
+        AcceleratorDevice,
+        AcceleratorOptions,
+    )
+    from docling.datamodel.base_models import (
+        InputFormat,
+    )  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402
     from docling.datamodel.pipeline_options import (  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402
         VlmPipelineOptions,
         smoldocling_vlm_conversion_options,
     )
-    from docling.pipeline.vlm_pipeline import VlmPipeline  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402
-    from docling.document_converter import DocumentConverter, PdfFormatOption  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402
-    from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402
-    from docling.datamodel.pipeline_options_vlm_model import ApiVlmOptions, ResponseFormat # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402
+    from docling.datamodel.pipeline_options_vlm_model import (  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402
+        ApiVlmOptions,
+        ResponseFormat,
+    )
+    from docling.document_converter import (  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402
+        DocumentConverter,
+        PdfFormatOption,
+    )
+    from docling.pipeline.vlm_pipeline import (
+        VlmPipeline,
+    )  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402
+    from docling_core.types.doc.base import (
+        ImageRefMode,
+    )  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402
 
     input_path_p = Path(input_path.path)
     artifacts_path_p = Path(artifacts_path.path)
@@ -57,9 +73,14 @@ def docling_convert_vlm(
 
     input_pdfs = [input_path_p / name for name in pdf_filenames]
 
-    print(f"docling-vlm-convert: starting with backend='vlm', files={len(input_pdfs)}", flush=True)
+    print(
+        f"docling-vlm-convert: starting with backend='vlm', files={len(input_pdfs)}",
+        flush=True,
+    )
     if not pdf_filenames:
-        raise ValueError("pdf_filenames must be provided with the list of file names to process")
+        raise ValueError(
+            "pdf_filenames must be provided with the list of file names to process"
+        )
 
     allowed_image_export_modes = {e.value for e in ImageRefMode}
     if image_export_mode not in allowed_image_export_modes:
@@ -69,40 +90,56 @@ def docling_convert_vlm(
 
     if remote_model_enabled:
         if not os.path.exists(remote_model_secret_mount_path):
-            raise ValueError(f"Secret for remote model should be mounted in {remote_model_secret_mount_path}")
+            raise ValueError(
+                f"Secret for remote model should be mounted in {remote_model_secret_mount_path}"
+            )
 
         remote_model_endpoint_url_secret = "REMOTE_MODEL_ENDPOINT_URL"
-        remote_model_endpoint_url_file_path = os.path.join(remote_model_secret_mount_path, remote_model_endpoint_url_secret)
+        remote_model_endpoint_url_file_path = os.path.join(
+            remote_model_secret_mount_path, remote_model_endpoint_url_secret
+        )
         if os.path.isfile(remote_model_endpoint_url_file_path):
             with open(remote_model_endpoint_url_file_path) as f:
                 remote_model_endpoint_url = f.read()
         else:
-            raise ValueError(f"Key {remote_model_endpoint_url_secret} not defined in secret {remote_model_secret_mount_path}")
+            raise ValueError(
+                f"Key {remote_model_endpoint_url_secret} not defined in secret {remote_model_secret_mount_path}"
+            )
 
         remote_model_name_secret = "REMOTE_MODEL_NAME"
-        remote_model_name_file_path = os.path.join(remote_model_secret_mount_path, remote_model_name_secret)
+        remote_model_name_file_path = os.path.join(
+            remote_model_secret_mount_path, remote_model_name_secret
+        )
         if os.path.isfile(remote_model_name_file_path):
             with open(remote_model_name_file_path) as f:
                 remote_model_name = f.read()
         else:
-            raise ValueError(f"Key {remote_model_name_secret} not defined in secret {remote_model_secret_mount_path}")
+            raise ValueError(
+                f"Key {remote_model_name_secret} not defined in secret {remote_model_secret_mount_path}"
+            )
 
         remote_model_api_key_secret = "REMOTE_MODEL_API_KEY"
-        remote_model_api_key_file_path = os.path.join(remote_model_secret_mount_path, remote_model_api_key_secret)
+        remote_model_api_key_file_path = os.path.join(
+            remote_model_secret_mount_path, remote_model_api_key_secret
+        )
         if os.path.isfile(remote_model_api_key_file_path):
             with open(remote_model_api_key_file_path) as f:
                 remote_model_api_key = f.read()
         else:
-            raise ValueError(f"Key {remote_model_api_key_secret} not defined in secret {remote_model_secret_mount_path}")
+            raise ValueError(
+                f"Key {remote_model_api_key_secret} not defined in secret {remote_model_secret_mount_path}"
+            )
 
         if not remote_model_endpoint_url:
-            raise ValueError("remote_model_endpoint_url must be provided when remote_model_enabled is True")
+            raise ValueError(
+                "remote_model_endpoint_url must be provided when remote_model_enabled is True"
+            )
 
         pipeline_options = VlmPipelineOptions(
             enable_remote_services=True,
         )
         pipeline_options.vlm_options = ApiVlmOptions(
-            url=remote_model_endpoint_url, # type: ignore[arg-type]
+            url=remote_model_endpoint_url,  # type: ignore[arg-type]
             params=dict(
                 model_id=remote_model_name,
                 parameters=dict(
@@ -144,10 +181,14 @@ def docling_convert_vlm(
 
         output_json_path = output_path_p / f"{doc_filename}.json"
         print(f"docling-vlm-convert: saving {output_json_path}", flush=True)
-        result.document.save_as_json(output_json_path, image_mode=ImageRefMode(image_export_mode))
+        result.document.save_as_json(
+            output_json_path, image_mode=ImageRefMode(image_export_mode)
+        )
 
         output_md_path = output_path_p / f"{doc_filename}.md"
         print(f"docling-vlm-convert: saving {output_md_path}", flush=True)
-        result.document.save_as_markdown(output_md_path, image_mode=ImageRefMode(image_export_mode))
+        result.document.save_as_markdown(
+            output_md_path, image_mode=ImageRefMode(image_export_mode)
+        )
 
     print("docling-vlm-convert: done", flush=True)

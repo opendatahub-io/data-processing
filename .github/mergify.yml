@@ -1,0 +1,69 @@
+pull_request_rules:
+  # PRIMARY MERGE RULE: Single comprehensive rule for auto-merge
+  - name: Auto-merge when ALL conditions met
+    conditions:
+      - "#approved-reviews-by>=1"
+      - "#changes-requested-reviews-by=0"
+      - "#review-requested=0"
+      - "-draft"
+      - "base=main"
+      - "label!=do-not-merge"
+      - "label!=breaking-change"
+      - "-conflict"
+    actions:
+      merge:
+        method: squash
+        commit_message_template: |
+          {{ title }} (#{{ number }})
+          
+          {{ body.split('Description')[0].strip() if body else '' }}
+      comment:
+        message: |
+          🎉 **Auto-merged successfully!**
+          
+          ✅ **All reviewers approved:** {{ approved_reviews_by | length }}
+          ✅ **CI checks passed:** All
+          
+          **Approved by:**
+          {% for login in approved_reviews_by %}
+          - @{{ login }}
+          {% endfor %}
+
+  - name: ping author on conflicts
+    conditions:
+      - "conflict"
+      - "-closed"
+    actions:
+      comment:
+        message: |
+          🔀 **Merge Conflict Detected**
+          
+          This pull request has merge conflicts that must be resolved before it can be merged.
+          @{{ author }} please rebase your branch.
+          
+          [Syncing a Fork Guide](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork)
+  # BACKPORT RULES 
+  - name: Create backport PRs for labeled changes
+    conditions:
+      - merged
+      - base=main
+      - label=backport
+    actions:
+      backport:
+        branches:
+          - stable-3.0
+        title: "[Backport stable-3.0] {{ title }}"
+        body: |
+          🔄 **Automatic backport of #{{ number }}**
+          
+          **Original PR:** {{ title }}
+          **Author:** @{{ author }}
+          **Target Branch:** `stable-3.0`
+          
+          **Note:** If this PR has conflicts, resolve them manually and request review.
+          
+          ---
+          
+          {{ body }}
+        assignees:
+          - "{{ author }}"

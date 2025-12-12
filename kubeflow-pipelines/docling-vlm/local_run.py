@@ -5,14 +5,8 @@ from typing import List
 # Add the parent directory to Python path to find common
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from common import create_pdf_splits, download_docling_models, import_pdfs
 from kfp import dsl, local
-
-from common import (
-    create_pdf_splits,
-    download_docling_models,
-    import_pdfs,
-)
-
 from vlm_components import docling_convert_vlm
 
 
@@ -34,7 +28,7 @@ def convert_pipeline_local():
     )
 
     artifacts = download_docling_models(
-        pipeline_type="vlm",  
+        pipeline_type="vlm",
         remote_model_endpoint_enabled=False,
     )
 

@@ -189,7 +189,7 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.4'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -207,7 +207,7 @@ deploymentSpec:
           \    num_splits: int,\n) -> List[List[str]]:\n    \"\"\"\n    Create a list\
           \ of PDF splits.\n\n    Args:\n        input_path: Path to the input directory\
           \ containing PDF files.\n        num_splits: Number of splits to create.\n\
-          \    \"\"\"\n    from pathlib import Path # pylint: disable=import-outside-toplevel\n\
+          \    \"\"\"\n    from pathlib import Path  # pylint: disable=import-outside-toplevel\n\
           \n    input_path_p = Path(input_path.path)\n\n    all_pdfs = [path.name\
           \ for path in input_path_p.glob(\"*.pdf\")]\n    all_splits = [all_pdfs[i::num_splits]\
           \ for i in range(num_splits)]\n    filled_splits = list(filter(None, all_splits))\n\
@@ -225,7 +225,7 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.4'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -255,56 +255,63 @@ deploymentSpec:
           \ images.\n        remote_model_enabled: Whether or not to use a remote\
           \ model.\n        remote_model_secret_mount_path: Path to the remote model\
           \ secret mount path.\n    \"\"\"\n    import os\n    from pathlib import\
-          \ Path\n\n    from docling_core.types.doc.base import ImageRefMode  # pylint:\
-          \ disable=import-outside-toplevel  # noqa: PLC0415, E402\n    from docling.datamodel.base_models\
-          \ import InputFormat  # pylint: disable=import-outside-toplevel  # noqa:\
-          \ PLC0415, E402\n    from docling.datamodel.pipeline_options import (  #\
-          \ pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402\n     \
-          \   VlmPipelineOptions,\n        smoldocling_vlm_conversion_options,\n \
-          \   )\n    from docling.pipeline.vlm_pipeline import VlmPipeline  # pylint:\
-          \ disable=import-outside-toplevel  # noqa: PLC0415, E402\n    from docling.document_converter\
-          \ import DocumentConverter, PdfFormatOption  # pylint: disable=import-outside-toplevel\
-          \  # noqa: PLC0415, E402\n    from docling.datamodel.accelerator_options\
-          \ import AcceleratorDevice, AcceleratorOptions  # pylint: disable=import-outside-toplevel\
-          \  # noqa: PLC0415, E402\n    from docling.datamodel.pipeline_options_vlm_model\
-          \ import ApiVlmOptions, ResponseFormat # pylint: disable=import-outside-toplevel\
-          \  # noqa: PLC0415, E402\n\n    input_path_p = Path(input_path.path)\n \
-          \   artifacts_path_p = Path(artifacts_path.path)\n    output_path_p = Path(output_path.path)\n\
-          \    output_path_p.mkdir(parents=True, exist_ok=True)\n\n    input_pdfs\
-          \ = [input_path_p / name for name in pdf_filenames]\n\n    print(f\"docling-vlm-convert:\
-          \ starting with backend='vlm', files={len(input_pdfs)}\", flush=True)\n\
-          \    if not pdf_filenames:\n        raise ValueError(\"pdf_filenames must\
-          \ be provided with the list of file names to process\")\n\n    allowed_image_export_modes\
+          \ Path\n\n    from docling.datamodel.accelerator_options import (  # pylint:\
+          \ disable=import-outside-toplevel  # noqa: PLC0415, E402\n        AcceleratorDevice,\n\
+          \        AcceleratorOptions,\n    )\n    from docling.datamodel.base_models\
+          \ import (\n        InputFormat,\n    )  # pylint: disable=import-outside-toplevel\
+          \  # noqa: PLC0415, E402\n    from docling.datamodel.pipeline_options import\
+          \ (  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402\n\
+          \        VlmPipelineOptions,\n        smoldocling_vlm_conversion_options,\n\
+          \    )\n    from docling.datamodel.pipeline_options_vlm_model import ( \
+          \ # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402\n   \
+          \     ApiVlmOptions,\n        ResponseFormat,\n    )\n    from docling.document_converter\
+          \ import (  # pylint: disable=import-outside-toplevel  # noqa: PLC0415,\
+          \ E402\n        DocumentConverter,\n        PdfFormatOption,\n    )\n  \
+          \  from docling.pipeline.vlm_pipeline import (\n        VlmPipeline,\n \
+          \   )  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402\n\
+          \    from docling_core.types.doc.base import (\n        ImageRefMode,\n\
+          \    )  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402\n\
+          \n    input_path_p = Path(input_path.path)\n    artifacts_path_p = Path(artifacts_path.path)\n\
+          \    output_path_p = Path(output_path.path)\n    output_path_p.mkdir(parents=True,\
+          \ exist_ok=True)\n\n    input_pdfs = [input_path_p / name for name in pdf_filenames]\n\
+          \n    print(\n        f\"docling-vlm-convert: starting with backend='vlm',\
+          \ files={len(input_pdfs)}\",\n        flush=True,\n    )\n    if not pdf_filenames:\n\
+          \        raise ValueError(\n            \"pdf_filenames must be provided\
+          \ with the list of file names to process\"\n        )\n\n    allowed_image_export_modes\
           \ = {e.value for e in ImageRefMode}\n    if image_export_mode not in allowed_image_export_modes:\n\
           \        raise ValueError(\n            f\"Invalid image_export_mode: {image_export_mode}.\
           \ Must be one of {sorted(allowed_image_export_modes)}\"\n        )\n\n \
           \   if remote_model_enabled:\n        if not os.path.exists(remote_model_secret_mount_path):\n\
-          \            raise ValueError(f\"Secret for remote model should be mounted\
-          \ in {remote_model_secret_mount_path}\")\n\n        remote_model_endpoint_url_secret\
-          \ = \"REMOTE_MODEL_ENDPOINT_URL\"\n        remote_model_endpoint_url_file_path\
-          \ = os.path.join(remote_model_secret_mount_path, remote_model_endpoint_url_secret)\n\
-          \        if os.path.isfile(remote_model_endpoint_url_file_path):\n     \
-          \       with open(remote_model_endpoint_url_file_path) as f:\n         \
-          \       remote_model_endpoint_url = f.read()\n        else:\n          \
-          \  raise ValueError(f\"Key {remote_model_endpoint_url_secret} not defined\
-          \ in secret {remote_model_secret_mount_path}\")\n\n        remote_model_name_secret\
-          \ = \"REMOTE_MODEL_NAME\"\n        remote_model_name_file_path = os.path.join(remote_model_secret_mount_path,\
-          \ remote_model_name_secret)\n        if os.path.isfile(remote_model_name_file_path):\n\
+          \            raise ValueError(\n                f\"Secret for remote model\
+          \ should be mounted in {remote_model_secret_mount_path}\"\n            )\n\
+          \n        remote_model_endpoint_url_secret = \"REMOTE_MODEL_ENDPOINT_URL\"\
+          \n        remote_model_endpoint_url_file_path = os.path.join(\n        \
+          \    remote_model_secret_mount_path, remote_model_endpoint_url_secret\n\
+          \        )\n        if os.path.isfile(remote_model_endpoint_url_file_path):\n\
+          \            with open(remote_model_endpoint_url_file_path) as f:\n    \
+          \            remote_model_endpoint_url = f.read()\n        else:\n     \
+          \       raise ValueError(\n                f\"Key {remote_model_endpoint_url_secret}\
+          \ not defined in secret {remote_model_secret_mount_path}\"\n           \
+          \ )\n\n        remote_model_name_secret = \"REMOTE_MODEL_NAME\"\n      \
+          \  remote_model_name_file_path = os.path.join(\n            remote_model_secret_mount_path,\
+          \ remote_model_name_secret\n        )\n        if os.path.isfile(remote_model_name_file_path):\n\
           \            with open(remote_model_name_file_path) as f:\n            \
-          \    remote_model_name = f.read()\n        else:\n            raise ValueError(f\"\
-          Key {remote_model_name_secret} not defined in secret {remote_model_secret_mount_path}\"\
-          )\n\n        remote_model_api_key_secret = \"REMOTE_MODEL_API_KEY\"\n  \
-          \      remote_model_api_key_file_path = os.path.join(remote_model_secret_mount_path,\
-          \ remote_model_api_key_secret)\n        if os.path.isfile(remote_model_api_key_file_path):\n\
+          \    remote_model_name = f.read()\n        else:\n            raise ValueError(\n\
+          \                f\"Key {remote_model_name_secret} not defined in secret\
+          \ {remote_model_secret_mount_path}\"\n            )\n\n        remote_model_api_key_secret\
+          \ = \"REMOTE_MODEL_API_KEY\"\n        remote_model_api_key_file_path = os.path.join(\n\
+          \            remote_model_secret_mount_path, remote_model_api_key_secret\n\
+          \        )\n        if os.path.isfile(remote_model_api_key_file_path):\n\
           \            with open(remote_model_api_key_file_path) as f:\n         \
           \       remote_model_api_key = f.read()\n        else:\n            raise\
-          \ ValueError(f\"Key {remote_model_api_key_secret} not defined in secret\
-          \ {remote_model_secret_mount_path}\")\n\n        if not remote_model_endpoint_url:\n\
-          \            raise ValueError(\"remote_model_endpoint_url must be provided\
-          \ when remote_model_enabled is True\")\n\n        pipeline_options = VlmPipelineOptions(\n\
+          \ ValueError(\n                f\"Key {remote_model_api_key_secret} not\
+          \ defined in secret {remote_model_secret_mount_path}\"\n            )\n\n\
+          \        if not remote_model_endpoint_url:\n            raise ValueError(\n\
+          \                \"remote_model_endpoint_url must be provided when remote_model_enabled\
+          \ is True\"\n            )\n\n        pipeline_options = VlmPipelineOptions(\n\
           \            enable_remote_services=True,\n        )\n        pipeline_options.vlm_options\
-          \ = ApiVlmOptions(\n            url=remote_model_endpoint_url, # type: ignore[arg-type]\n\
-          \            params=dict(\n                model_id=remote_model_name,\n\
+          \ = ApiVlmOptions(\n            url=remote_model_endpoint_url,  # type:\
+          \ ignore[arg-type]\n            params=dict(\n                model_id=remote_model_name,\n\
           \                parameters=dict(\n                    max_new_tokens=400,\n\
           \                ),\n            ),\n            prompt=\"OCR the full page\
           \ to markdown.\",\n            timeout=600,\n            response_format=ResponseFormat.MARKDOWN,\n\
@@ -322,11 +329,12 @@ deploymentSpec:
           \n    for result in results:\n        doc_filename = result.input.file.stem\n\
           \n        output_json_path = output_path_p / f\"{doc_filename}.json\"\n\
           \        print(f\"docling-vlm-convert: saving {output_json_path}\", flush=True)\n\
-          \        result.document.save_as_json(output_json_path, image_mode=ImageRefMode(image_export_mode))\n\
-          \n        output_md_path = output_path_p / f\"{doc_filename}.md\"\n    \
-          \    print(f\"docling-vlm-convert: saving {output_md_path}\", flush=True)\n\
-          \        result.document.save_as_markdown(output_md_path, image_mode=ImageRefMode(image_export_mode))\n\
-          \n    print(\"docling-vlm-convert: done\", flush=True)\n\n"
+          \        result.document.save_as_json(\n            output_json_path, image_mode=ImageRefMode(image_export_mode)\n\
+          \        )\n\n        output_md_path = output_path_p / f\"{doc_filename}.md\"\
+          \n        print(f\"docling-vlm-convert: saving {output_md_path}\", flush=True)\n\
+          \        result.document.save_as_markdown(\n            output_md_path,\
+          \ image_mode=ImageRefMode(image_export_mode)\n        )\n\n    print(\"\
+          docling-vlm-convert: done\", flush=True)\n\n"
         image: quay.io/fabianofranz/docling-ubi9:2.54.0
         resources:
           cpuLimit: 4.0
@@ -349,7 +357,7 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.4'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -374,35 +382,36 @@ deploymentSpec:
           \ Path to the output directory for Docling models\n        pipeline_type:\
           \ Type of pipeline (standard, vlm)\n        remote_model_endpoint_enabled:\
           \ Whether to download remote model endpoint models (VLM only)\n    \"\"\"\
-          \n    from pathlib import Path # pylint: disable=import-outside-toplevel\n\
-          \    from docling.utils.model_downloader import download_models # pylint:\
-          \ disable=import-outside-toplevel\n\n    output_path_p = Path(output_path.path)\n\
-          \    output_path_p.mkdir(parents=True, exist_ok=True)\n\n    if pipeline_type\
-          \ == \"standard\":\n        # Standard pipeline: download traditional models\n\
-          \        download_models(\n            output_dir=output_path_p,\n     \
-          \       progress=True,\n            with_layout=True,\n            with_tableformer=True,\n\
-          \            with_easyocr=False,\n        )\n    elif pipeline_type == \"\
-          vlm\" and remote_model_endpoint_enabled:\n        # VLM pipeline with remote\
-          \ model endpoint: Download minimal required models\n        # Only models\
-          \ set are what lives in fabianofranz repo\n        # TODO: figure out what\
-          \ needs to be downloaded or removed\n        download_models(\n        \
-          \    output_dir=output_path_p,\n            progress=False,\n          \
-          \  force=False,\n            with_layout=True,\n            with_tableformer=True,\n\
-          \            with_code_formula=False,\n            with_picture_classifier=False,\n\
-          \            with_smolvlm=False,\n            with_smoldocling=False,\n\
-          \            with_smoldocling_mlx=False,\n            with_granite_vision=False,\n\
-          \            with_easyocr=False,\n        )\n    elif pipeline_type == \"\
-          vlm\":\n        # VLM pipeline with local models: Download VLM models for\
-          \ local inference\n        # TODO: set models downloaded by model name passed\
-          \ into KFP pipeline ex: smoldocling OR granite-vision\n        download_models(\n\
-          \            output_dir=output_path_p,\n            with_smolvlm=True,\n\
-          \            with_smoldocling=True,\n            progress=False,\n     \
-          \       force=False,\n            with_layout=False,\n            with_tableformer=False,\n\
-          \            with_code_formula=False,\n            with_picture_classifier=False,\n\
-          \            with_smoldocling_mlx=False,\n            with_granite_vision=False,\n\
-          \            with_easyocr=False,\n        )\n    else:\n        raise ValueError(f\"\
-          Invalid pipeline_type: {pipeline_type}. Must be 'standard' or 'vlm'\")\n\
-          \n"
+          \n    from pathlib import Path  # pylint: disable=import-outside-toplevel\n\
+          \n    from docling.utils.model_downloader import (\n        download_models,\n\
+          \    )  # pylint: disable=import-outside-toplevel\n\n    output_path_p =\
+          \ Path(output_path.path)\n    output_path_p.mkdir(parents=True, exist_ok=True)\n\
+          \n    if pipeline_type == \"standard\":\n        # Standard pipeline: download\
+          \ traditional models\n        download_models(\n            output_dir=output_path_p,\n\
+          \            progress=True,\n            with_layout=True,\n           \
+          \ with_tableformer=True,\n            with_easyocr=False,\n        )\n \
+          \   elif pipeline_type == \"vlm\" and remote_model_endpoint_enabled:\n \
+          \       # VLM pipeline with remote model endpoint: Download minimal required\
+          \ models\n        # Only models set are what lives in fabianofranz repo\n\
+          \        # TODO: figure out what needs to be downloaded or removed\n   \
+          \     download_models(\n            output_dir=output_path_p,\n        \
+          \    progress=False,\n            force=False,\n            with_layout=True,\n\
+          \            with_tableformer=True,\n            with_code_formula=False,\n\
+          \            with_picture_classifier=False,\n            with_smolvlm=False,\n\
+          \            with_smoldocling=False,\n            with_smoldocling_mlx=False,\n\
+          \            with_granite_vision=False,\n            with_easyocr=False,\n\
+          \        )\n    elif pipeline_type == \"vlm\":\n        # VLM pipeline with\
+          \ local models: Download VLM models for local inference\n        # TODO:\
+          \ set models downloaded by model name passed into KFP pipeline ex: smoldocling\
+          \ OR granite-vision\n        download_models(\n            output_dir=output_path_p,\n\
+          \            with_smolvlm=True,\n            with_smoldocling=True,\n  \
+          \          progress=False,\n            force=False,\n            with_layout=False,\n\
+          \            with_tableformer=False,\n            with_code_formula=False,\n\
+          \            with_picture_classifier=False,\n            with_smoldocling_mlx=False,\n\
+          \            with_granite_vision=False,\n            with_easyocr=False,\n\
+          \        )\n    else:\n        raise ValueError(\n            f\"Invalid\
+          \ pipeline_type: {pipeline_type}. Must be 'standard' or 'vlm'\"\n      \
+          \  )\n\n"
         image: quay.io/fabianofranz/docling-ubi9:2.54.0
     exec-import-pdfs:
       container:
@@ -417,7 +426,7 @@ deploymentSpec:
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
           \ python3 -m pip install --quiet --no-warn-script-location 'boto3' 'requests'\
-          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.4'\
+          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -439,50 +448,54 @@ deploymentSpec:
           \ base_url: Base URL of the PDF files.\n        output_path: Path to the\
           \ output directory for the PDF files.\n        from_s3: Whether or not to\
           \ import from S3.\n        s3_secret_mount_path: Path to the secret mount\
-          \ path for the S3 credentials.\n    \"\"\"\n    import boto3 # pylint: disable=import-outside-toplevel\n\
-          \    import os # pylint: disable=import-outside-toplevel\n    from pathlib\
-          \ import Path # pylint: disable=import-outside-toplevel\n    import requests\
-          \ # pylint: disable=import-outside-toplevel\n\n    filenames_list = [name.strip()\
-          \ for name in filenames.split(\",\") if name.strip()]\n    if not filenames_list:\n\
-          \        raise ValueError(\"filenames must contain at least one filename\
-          \ (comma-separated)\")\n\n    output_path_p = Path(output_path.path)\n \
-          \   output_path_p.mkdir(parents=True, exist_ok=True)\n\n    if from_s3:\n\
-          \        if not os.path.exists(s3_secret_mount_path):\n            raise\
-          \ ValueError(f\"Secret for S3 should be mounted in {s3_secret_mount_path}\"\
-          )\n\n        s3_endpoint_url_secret = \"S3_ENDPOINT_URL\"\n        s3_endpoint_url_file_path\
-          \ = os.path.join(s3_secret_mount_path, s3_endpoint_url_secret)\n       \
-          \ if os.path.isfile(s3_endpoint_url_file_path):\n            with open(s3_endpoint_url_file_path)\
-          \ as f:\n                s3_endpoint_url = f.read()\n        else:\n   \
-          \         raise ValueError(f\"Key {s3_endpoint_url_secret} not defined in\
-          \ secret {s3_secret_mount_path}\")\n\n        s3_access_key_secret = \"\
-          S3_ACCESS_KEY\"\n        s3_access_key_file_path = os.path.join(s3_secret_mount_path,\
-          \ s3_access_key_secret)\n        if os.path.isfile(s3_access_key_file_path):\n\
+          \ path for the S3 credentials.\n    \"\"\"\n    import os  # pylint: disable=import-outside-toplevel\n\
+          \    from pathlib import Path  # pylint: disable=import-outside-toplevel\n\
+          \n    import boto3  # pylint: disable=import-outside-toplevel\n    import\
+          \ requests  # pylint: disable=import-outside-toplevel\n\n    filenames_list\
+          \ = [name.strip() for name in filenames.split(\",\") if name.strip()]\n\
+          \    if not filenames_list:\n        raise ValueError(\n            \"filenames\
+          \ must contain at least one filename (comma-separated)\"\n        )\n\n\
+          \    output_path_p = Path(output_path.path)\n    output_path_p.mkdir(parents=True,\
+          \ exist_ok=True)\n\n    if from_s3:\n        if not os.path.exists(s3_secret_mount_path):\n\
+          \            raise ValueError(\n                f\"Secret for S3 should\
+          \ be mounted in {s3_secret_mount_path}\"\n            )\n\n        s3_endpoint_url_secret\
+          \ = \"S3_ENDPOINT_URL\"\n        s3_endpoint_url_file_path = os.path.join(\n\
+          \            s3_secret_mount_path, s3_endpoint_url_secret\n        )\n \
+          \       if os.path.isfile(s3_endpoint_url_file_path):\n            with\
+          \ open(s3_endpoint_url_file_path) as f:\n                s3_endpoint_url\
+          \ = f.read()\n        else:\n            raise ValueError(\n           \
+          \     f\"Key {s3_endpoint_url_secret} not defined in secret {s3_secret_mount_path}\"\
+          \n            )\n\n        s3_access_key_secret = \"S3_ACCESS_KEY\"\n  \
+          \      s3_access_key_file_path = os.path.join(\n            s3_secret_mount_path,\
+          \ s3_access_key_secret\n        )\n        if os.path.isfile(s3_access_key_file_path):\n\
           \            with open(s3_access_key_file_path) as f:\n                s3_access_key\
-          \ = f.read()\n        else:\n            raise ValueError(f\"Key {s3_access_key_secret}\
-          \ not defined in secret {s3_secret_mount_path}\")\n\n        s3_secret_key_secret\
-          \ = \"S3_SECRET_KEY\"\n        s3_secret_key_file_path = os.path.join(s3_secret_mount_path,\
-          \ s3_secret_key_secret)\n        if os.path.isfile(s3_secret_key_file_path):\n\
+          \ = f.read()\n        else:\n            raise ValueError(\n           \
+          \     f\"Key {s3_access_key_secret} not defined in secret {s3_secret_mount_path}\"\
+          \n            )\n\n        s3_secret_key_secret = \"S3_SECRET_KEY\"\n  \
+          \      s3_secret_key_file_path = os.path.join(\n            s3_secret_mount_path,\
+          \ s3_secret_key_secret\n        )\n        if os.path.isfile(s3_secret_key_file_path):\n\
           \            with open(s3_secret_key_file_path) as f:\n                s3_secret_key\
-          \ = f.read()\n        else:\n            raise ValueError(f\"Key {s3_secret_key_secret}\
-          \ not defined in secret {s3_secret_mount_path}\")\n\n        s3_bucket_secret\
-          \ = \"S3_BUCKET\"\n        s3_bucket_file_path = os.path.join(s3_secret_mount_path,\
-          \ s3_bucket_secret)\n        if os.path.isfile(s3_bucket_file_path):\n \
-          \           with open(s3_bucket_file_path) as f:\n                s3_bucket\
-          \ = f.read()\n        else:\n            raise ValueError(f\"Key {s3_bucket_secret}\
-          \ not defined in secret {s3_secret_mount_path}\")\n\n        s3_prefix_secret\
-          \ = \"S3_PREFIX\"\n        s3_prefix_file_path = os.path.join(s3_secret_mount_path,\
-          \ s3_prefix_secret)\n        if os.path.isfile(s3_prefix_file_path):\n \
-          \           with open(s3_prefix_file_path) as f:\n                s3_prefix\
-          \ = f.read()\n        else:\n            raise ValueError(f\"Key {s3_prefix_secret}\
-          \ not defined in secret {s3_secret_mount_path}\")\n\n        if not s3_endpoint_url:\n\
-          \            raise ValueError(\"S3_ENDPOINT_URL must be provided\")\n\n\
-          \        if not s3_bucket:\n            raise ValueError(\"S3_BUCKET must\
-          \ be provided\")\n\n        s3_client = boto3.client(\n            's3',\n\
-          \            endpoint_url=s3_endpoint_url,\n            aws_access_key_id=s3_access_key,\n\
-          \            aws_secret_access_key=s3_secret_key,\n        )\n\n       \
-          \ for filename in filenames_list:\n            orig = f\"{s3_prefix.rstrip('/')}/{filename.lstrip('/')}\"\
-          \n            dest = output_path_p / filename\n            print(f\"import-test-pdfs:\
-          \ downloading {orig} -> {dest} from s3\", flush=True)\n            s3_client.download_file(s3_bucket,\
+          \ = f.read()\n        else:\n            raise ValueError(\n           \
+          \     f\"Key {s3_secret_key_secret} not defined in secret {s3_secret_mount_path}\"\
+          \n            )\n\n        s3_bucket_secret = \"S3_BUCKET\"\n        s3_bucket_file_path\
+          \ = os.path.join(s3_secret_mount_path, s3_bucket_secret)\n        if os.path.isfile(s3_bucket_file_path):\n\
+          \            with open(s3_bucket_file_path) as f:\n                s3_bucket\
+          \ = f.read()\n        else:\n            raise ValueError(\n           \
+          \     f\"Key {s3_bucket_secret} not defined in secret {s3_secret_mount_path}\"\
+          \n            )\n\n        s3_prefix_secret = \"S3_PREFIX\"\n        s3_prefix_file_path\
+          \ = os.path.join(s3_secret_mount_path, s3_prefix_secret)\n        if os.path.isfile(s3_prefix_file_path):\n\
+          \            with open(s3_prefix_file_path) as f:\n                s3_prefix\
+          \ = f.read()\n        else:\n            raise ValueError(\n           \
+          \     f\"Key {s3_prefix_secret} not defined in secret {s3_secret_mount_path}\"\
+          \n            )\n\n        if not s3_endpoint_url:\n            raise ValueError(\"\
+          S3_ENDPOINT_URL must be provided\")\n\n        if not s3_bucket:\n     \
+          \       raise ValueError(\"S3_BUCKET must be provided\")\n\n        s3_client\
+          \ = boto3.client(\n            \"s3\",\n            endpoint_url=s3_endpoint_url,\n\
+          \            aws_access_key_id=s3_access_key,\n            aws_secret_access_key=s3_secret_key,\n\
+          \        )\n\n        for filename in filenames_list:\n            orig\
+          \ = f\"{s3_prefix.rstrip('/')}/{filename.lstrip('/')}\"\n            dest\
+          \ = output_path_p / filename\n            print(f\"import-test-pdfs: downloading\
+          \ {orig} -> {dest} from s3\", flush=True)\n            s3_client.download_file(s3_bucket,\
           \ orig, dest)\n    else:\n        if not base_url:\n            raise ValueError(\"\
           base_url must be provided\")\n\n        for filename in filenames_list:\n\
           \            url = f\"{base_url.rstrip('/')}/{filename.lstrip('/')}\"\n\
@@ -619,7 +632,7 @@ root:
         isOptional: true
         parameterType: BOOLEAN
 schemaVersion: 2.1.0
-sdkVersion: kfp-2.14.4
+sdkVersion: kfp-2.14.6
 ---
 platforms:
   kubernetes:

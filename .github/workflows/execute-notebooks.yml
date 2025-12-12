@@ -1,0 +1,55 @@
+name: Execute Notebooks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "notebooks/**/*.ipynb"
+      - ".github/workflows/execute-notebooks.yml"
+  push:
+    branches: [ main ]
+    paths:
+      - "notebooks/**/*.ipynb"
+      - ".github/workflows/execute-notebooks.yml"
+  # Allow manual triggering
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  execute_tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Set the notebooks to execute
+        notebook_to_execute: ["notebooks/use-cases/document-conversion-standard.ipynb"]
+
+        # Set the files use in each notebook execution
+        file_to_use: ["https://raw.githubusercontent.com/py-pdf/sample-files/refs/heads/main/001-trivial/minimal-document.pdf"]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Testing Tools
+        run: |
+          pip install papermill ipykernel
+          ipython kernel install --name "python3" --user
+
+      - name: Execute Notebooks
+        run: |
+          set -ux
+
+          NOTEBOOK="${{ matrix.notebook_to_execute }}"
+          FILE="${{ matrix.file_to_use }}"
+
+          echo "Executing notebook '$NOTEBOOK' with file '$FILE'..."
+
+          papermill $NOTEBOOK $NOTEBOOK.tmp.ipynb -b $(echo -n "files: [\"$FILE\"]" | base64 -w 0)
+
+          echo "✓ Notebook $NOTEBOOK executed successfully"
