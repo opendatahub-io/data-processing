@@ -7,7 +7,7 @@ def is_title(text: str) -> bool:
     return re.match(r"[0-9０-９]+[－ー][0-9０-９]+", text) is not None
 
 def is_toc(obj: dict[str, Any]) -> bool:
-    return re.match(r"^#/pictures/", obj["parent"]["$ref"]) is not None
+    return re.match(r"^#/pictures/", obj.get("parent", {}).get("$ref", "")) is not None
 
 def get_title_match(text: str) -> re.Match | None:
     return re.match(r"([0-9０-９]+)[－ー]([0-9０-９]+)", text)
