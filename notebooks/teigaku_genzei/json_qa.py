@@ -48,7 +48,7 @@ def extract_qa_pairs(data):
     ahead_pos_list = [ai for (ai, ahead) in ahead_list]
     atail_pos_list = title_pos_list[1:] + [len(text_list)]
 
-    for (ti, qhi, ahi, ati) in zip(title_pos_list, qhead_pos_list, ahead_pos_list, atail_pos_list):
+    for (ti, qhi, ahi, ati) in zip(title_pos_list, qhead_pos_list, ahead_pos_list, atail_pos_list, strict=True):
         title = text_list[ti]["text"]
         question = get_text_block(text_list, qhi, ahi)
         answer = get_text_block(text_list, ahi, ati)
