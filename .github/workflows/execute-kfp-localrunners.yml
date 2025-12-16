@@ -44,7 +44,7 @@ jobs:
         working-directory: kubeflow-pipelines/${{ matrix.pipeline }}
         run: |
           mkdir -p local_outputs
-          chmod 777 local_outputs
+          chmod 755 local_outputs
       
       - name: Run local pipeline
         working-directory: kubeflow-pipelines/${{ matrix.pipeline }}
