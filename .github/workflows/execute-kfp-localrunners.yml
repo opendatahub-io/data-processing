@@ -19,6 +19,8 @@ on:
         description: "Pull request number or branch name"
         required: true
         default: "main"
+env:
+  QUAY_REGISTRY: quay.io
 
 jobs:
   test-local-pipelines:
@@ -47,6 +49,12 @@ jobs:
         run: |
           mkdir -p local_outputs
           chmod 755 local_outputs
+      - name: Log in to Quay Container Registry
+        uses: docker/login-action@v3
+        with:
+         registry: ${{ env.QUAY_REGISTRY }}
+         username: ${{ secrets.QUAY_USERNAME }}
+         password: ${{ secrets.QUAY_PASSWORD }}
       
       - name: Run local pipeline
         working-directory: kubeflow-pipelines/${{ matrix.pipeline }}
