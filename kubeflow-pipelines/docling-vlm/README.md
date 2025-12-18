@@ -18,7 +18,40 @@ The following configuration options are available as KFP parameters when you _Cr
 - `pdf_base_url`: A publicly accessible HTTP/S base URL where the PDF files listed in `pdf_filenames` are located.
 - `pdf_filenames`: List of PDF file names to process, separated by commas.
 - `pdf_from_s3`: If `True`, PDF files will be fetched from an S3-compatible object storage rather than `pdf_base_url`. A secret must be configured as described in [docs](../README.md).
- 
+
+### Chunking options
+
+Optional document chunking using Docling's [HybridChunker](https://docling-project.github.io/docling/examples/hybrid_chunking/):
+
+- `docling_chunk_enabled`: If `True`, chunk converted documents into smaller pieces (default: `False`).
+- `docling_chunk_max_tokens`: Maximum tokens per chunk (default: `512`).
+- `docling_chunk_merge_peers`: If `True`, merge adjacent small chunks for better context (default: `True`).
+
+Chunking uses the `sentence-transformers/all-MiniLM-L6-v2` tokenizer for accurate token counting.
+
+**Chunked output**: When enabled, creates `{filename}_chunks.jsonl` files (one JSON object per line) in the same output directory as the converted documents. See [main docs](../README.md) for output format details.
+
+## Local testing
+
+You can test the pipeline locally using Docker before deploying to KFP.
+
+### Prerequisites
+
+```bash
+pip install docker kfp
+```
+
+Requires a Docker-compatible daemon (Docker or Podman socket).
+
+### Run locally
+
+```bash
+cd data-processing/kubeflow-pipelines/docling-vlm
+python local_run.py
+```
+
+This runs `convert_pipeline_local()` which converts PDFs using VLM and chunks the output.
+
 ## Compiling from source
 
 ### Clone repository, create venv, install dependencies

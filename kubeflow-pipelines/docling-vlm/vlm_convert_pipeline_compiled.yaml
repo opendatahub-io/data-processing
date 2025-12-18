@@ -2,6 +2,9 @@
 # Name: data-processing-docling-vlm-pipeline
 # Description: Docling VLM convert pipeline by the Data Processing Team
 # Inputs:
+#    docling_chunk_enabled: bool [Default: False]
+#    docling_chunk_max_tokens: int [Default: 512.0]
+#    docling_chunk_merge_peers: bool [Default: True]
 #    docling_image_export_mode: str [Default: 'embedded']
 #    docling_num_threads: int [Default: 4.0]
 #    docling_remote_model_enabled: bool [Default: False]
@@ -11,6 +14,37 @@
 #    pdf_filenames: str [Default: '2203.01017v2.pdf']
 #    pdf_from_s3: bool [Default: False]
 components:
+  comp-condition-2:
+    dag:
+      tasks:
+        docling-chunk:
+          cachingOptions: {}
+          componentRef:
+            name: comp-docling-chunk
+          inputs:
+            artifacts:
+              input_path:
+                componentInputArtifact: pipelinechannel--docling-convert-vlm-output_path
+            parameters:
+              max_tokens:
+                componentInputParameter: pipelinechannel--docling_chunk_max_tokens
+              merge_peers:
+                componentInputParameter: pipelinechannel--docling_chunk_merge_peers
+          taskInfo:
+            name: docling-chunk
+    inputDefinitions:
+      artifacts:
+        pipelinechannel--docling-convert-vlm-output_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+      parameters:
+        pipelinechannel--docling_chunk_enabled:
+          parameterType: BOOLEAN
+        pipelinechannel--docling_chunk_max_tokens:
+          parameterType: NUMBER_INTEGER
+        pipelinechannel--docling_chunk_merge_peers:
+          parameterType: BOOLEAN
   comp-create-pdf-splits:
     executorLabel: exec-create-pdf-splits
     inputDefinitions:
@@ -28,6 +62,32 @@ components:
       parameters:
         Output:
           parameterType: LIST
+  comp-docling-chunk:
+    executorLabel: exec-docling-chunk
+    inputDefinitions:
+      artifacts:
+        input_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+          description: Path to the input directory containing Docling JSON files
+      parameters:
+        max_tokens:
+          defaultValue: 512.0
+          description: Maximum number of tokens per chunk
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        merge_peers:
+          defaultValue: true
+          description: Whether to merge smaller chunks at the same level
+          isOptional: true
+          parameterType: BOOLEAN
+    outputDefinitions:
+      artifacts:
+        output_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
   comp-docling-convert-vlm:
     executorLabel: exec-docling-convert-vlm
     inputDefinitions:
@@ -100,6 +160,29 @@ components:
   comp-for-loop-1:
     dag:
       tasks:
+        condition-2:
+          componentRef:
+            name: comp-condition-2
+          dependentTasks:
+          - docling-convert-vlm
+          inputs:
+            artifacts:
+              pipelinechannel--docling-convert-vlm-output_path:
+                taskOutputArtifact:
+                  outputArtifactKey: output_path
+                  producerTask: docling-convert-vlm
+            parameters:
+              pipelinechannel--docling_chunk_enabled:
+                componentInputParameter: pipelinechannel--docling_chunk_enabled
+              pipelinechannel--docling_chunk_max_tokens:
+                componentInputParameter: pipelinechannel--docling_chunk_max_tokens
+              pipelinechannel--docling_chunk_merge_peers:
+                componentInputParameter: pipelinechannel--docling_chunk_merge_peers
+          taskInfo:
+            name: condition-2
+          triggerPolicy:
+            condition: inputs.parameter_values['pipelinechannel--docling_chunk_enabled']
+              == true
         docling-convert-vlm:
           cachingOptions: {}
           componentRef:
@@ -141,6 +224,12 @@ components:
           parameterType: LIST
         pipelinechannel--create-pdf-splits-Output-loop-item:
           parameterType: LIST
+        pipelinechannel--docling_chunk_enabled:
+          parameterType: BOOLEAN
+        pipelinechannel--docling_chunk_max_tokens:
+          parameterType: NUMBER_INTEGER
+        pipelinechannel--docling_chunk_merge_peers:
+          parameterType: BOOLEAN
         pipelinechannel--docling_image_export_mode:
           parameterType: STRING
         pipelinechannel--docling_num_threads:
@@ -213,6 +302,129 @@ deploymentSpec:
           \ for i in range(num_splits)]\n    filled_splits = list(filter(None, all_splits))\n\
           \    return filled_splits\n\n"
         image: registry.access.redhat.com/ubi9/python-311:9.6-1755074620
+    exec-docling-chunk:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - docling_chunk
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef docling_chunk(\n    input_path: dsl.Input[dsl.Artifact],\n  \
+          \  output_path: dsl.Output[dsl.Artifact],\n    max_tokens: int = 512,\n\
+          \    merge_peers: bool = True,\n):\n    \"\"\"\n    Chunk Docling documents\
+          \ using HybridChunker. Takes converted docling JSON files as input\n   \
+          \ and produces chunked JSONL files with semantic chunks suitable for RAG.\n\
+          \n    Output format is JSONL (one JSON object per line) for easy inspection\
+          \ and streaming.\n\n    Args:\n        input_path: Path to the input directory\
+          \ containing Docling JSON files\n        output_path: Path to the output\
+          \ directory for the chunked JSONL files\n        max_tokens: Maximum number\
+          \ of tokens per chunk\n        merge_peers: Whether to merge smaller chunks\
+          \ at the same level\n    \"\"\"\n    import json  # pylint: disable=import-outside-toplevel\n\
+          \    from datetime import datetime, timezone  # pylint: disable=import-outside-toplevel\n\
+          \    from pathlib import Path  # pylint: disable=import-outside-toplevel\n\
+          \n    # HybridChunker = Docling's smart chunking class that combines:\n\
+          \    # 1. Document structure awareness\n    # 2. Token-based splitting\n\
+          \    from docling.chunking import HybridChunker  # pylint: disable=import-outside-toplevel\n\
+          \    from docling_core.transforms.chunker.tokenizer.huggingface import (\n\
+          \        HuggingFaceTokenizer,\n    )  # pylint: disable=import-outside-toplevel\n\
+          \    from docling_core.types import DoclingDocument  # pylint: disable=import-outside-toplevel\n\
+          \    from transformers import AutoTokenizer  # pylint: disable=import-outside-toplevel\n\
+          \n    # Convert KFP artifact paths to Path objects\n    input_path_p = Path(input_path.path)\n\
+          \    output_path_p = Path(output_path.path)\n    output_path_p.mkdir(parents=True,\
+          \ exist_ok=True)\n\n    # Initialize tokenizer for HybridChunker (new API)\n\
+          \    # Using a lightweight sentence-transformer model for tokenization\n\
+          \    EMBED_MODEL_ID = \"sentence-transformers/all-MiniLM-L6-v2\"\n    try:\n\
+          \        hf_tokenizer = AutoTokenizer.from_pretrained(\n            EMBED_MODEL_ID,\n\
+          \            resume_download=True,\n            timeout=60,\n        )\n\
+          \        print(f\"docling-chunk: loaded tokenizer from {EMBED_MODEL_ID}\"\
+          , flush=True)\n    except Exception as e:\n        print(f\"docling-chunk:\
+          \ ERROR loading tokenizer: {e}\", flush=True)\n        raise RuntimeError(\n\
+          \            f\"Failed to load tokenizer model {EMBED_MODEL_ID}. \"\n  \
+          \          \"Ensure network access to HuggingFace Hub or pre-download the\
+          \ model.\"\n        ) from e\n\n    tokenizer = HuggingFaceTokenizer(\n\
+          \        tokenizer=hf_tokenizer,\n        max_tokens=max_tokens,\n    )\n\
+          \n    # Initialize Hybrid chunker with user-specified parameters\n    #\
+          \ tokenizer: The tokenizer wrapper to use for counting tokens (includes\
+          \ max_tokens)\n    # merge_peers: if true, smaller adjacent chunks will\
+          \ be merged together\n    chunker = HybridChunker(\n        tokenizer=tokenizer,\n\
+          \        merge_peers=merge_peers,\n    )\n\n    # Find all JSON files in\
+          \ the input directory\n    json_files = list(input_path_p.glob(\"*.json\"\
+          ))\n    if not json_files:\n        print(f\"docling-chunk: No JSON files\
+          \ found in {input_path_p}\", flush=True)\n        return\n\n    print(\n\
+          \        f\"docling-chunk: processing {len(json_files)} files with max_tokens={max_tokens}\
+          \ and merge_peers={merge_peers}\",\n        flush=True,\n    )\n\n    #\
+          \ Track processing results\n    processed_count = 0\n    skipped_files =\
+          \ []\n\n    # Process each file\n    for json_file in json_files:\n    \
+          \    print(f\"docling-chunk: processing {json_file}\", flush=True)\n\n \
+          \       # Load and validate the JSON file\n        try:\n            with\
+          \ open(json_file, \"r\", encoding=\"utf-8\") as f:\n                doc_data\
+          \ = json.load(f)\n        except json.JSONDecodeError as e:\n          \
+          \  print(\n                f\"docling-chunk: skipping {json_file.name} -\
+          \ invalid JSON: {e}\",\n                flush=True,\n            )\n   \
+          \         skipped_files.append((json_file.name, f\"invalid JSON: {e}\"))\n\
+          \            continue\n\n        # Parse the JSON data into a DoclingDocument\
+          \ object\n        # This validates that the JSON conforms to the DoclingDocument\
+          \ schema\n        try:\n            doc = DoclingDocument.model_validate(doc_data)\n\
+          \        except Exception as e:\n            # Catches pydantic.ValidationError\
+          \ and any other validation issues\n            print(\n                f\"\
+          docling-chunk: skipping {json_file.name} - not a valid DoclingDocument:\
+          \ {e}\",\n                flush=True,\n            )\n            skipped_files.append((json_file.name,\
+          \ f\"validation failed: {e}\"))\n            continue\n\n        # Chunk\
+          \ the document using HybridChunker\n        chunks = list(chunker.chunk(dl_doc=doc))\n\
+          \n        # Generate output filename: original_name_chunks.jsonl\n     \
+          \   output_filename = f\"{json_file.stem}_chunks.jsonl\"\n        output_file\
+          \ = output_path_p / output_filename\n\n        # Get current timestamp in\
+          \ ISO format\n        timestamp = datetime.now(timezone.utc).isoformat()\n\
+          \n        # Chunking config (for reproducibility)\n        chunking_config\
+          \ = {\n            \"max_tokens\": max_tokens,\n            \"merge_peers\"\
+          : merge_peers,\n            \"tokenizer_model\": EMBED_MODEL_ID,\n     \
+          \   }\n\n        # Write chunks as JSONL (one JSON object per line)\n  \
+          \      with open(output_file, \"w\", encoding=\"utf-8\") as f:\n       \
+          \     for idx, chunk in enumerate(chunks):\n                # Get contextualized\
+          \ text for this chunk\n                chunk_text = chunker.contextualize(chunk=chunk)\n\
+          \n                # Build the chunk object\n                chunk_obj =\
+          \ {\n                    \"timestamp\": timestamp,\n                   \
+          \ \"source_document\": json_file.name,\n                    \"chunk_index\"\
+          : idx,\n                    \"chunking_config\": chunking_config,\n    \
+          \                \"text\": chunk_text,\n                }\n\n          \
+          \      # Write as a single line of JSON\n                f.write(json.dumps(chunk_obj,\
+          \ ensure_ascii=False) + \"\\n\")\n\n        print(\n            f\"docling-chunk:\
+          \ saved {len(chunks)} chunks to {output_filename}\",\n            flush=True,\n\
+          \        )\n        processed_count += 1\n\n    # Report summary\n    print(\n\
+          \        f\"docling-chunk: done - processed {processed_count}/{len(json_files)}\
+          \ files\",\n        flush=True,\n    )\n    if skipped_files:\n        print(\n\
+          \            f\"docling-chunk: skipped {len(skipped_files)} invalid files:\"\
+          ,\n            flush=True,\n        )\n        for filename, reason in skipped_files:\n\
+          \            print(f\"  - {filename}: {reason}\", flush=True)\n\n"
+        image: quay.io/fabianofranz/docling-ubi9:2.54.0
+        resources:
+          cpuLimit: 2.0
+          cpuRequest: 0.25
+          memoryLimit: 2.0
+          memoryRequest: 0.512
+          resourceCpuLimit: '2'
+          resourceCpuRequest: 250m
+          resourceMemoryLimit: 2G
+          resourceMemoryRequest: 512M
     exec-docling-convert-vlm:
       container:
         args:
@@ -566,6 +778,12 @@ root:
               taskOutputParameter:
                 outputParameterKey: Output
                 producerTask: create-pdf-splits
+            pipelinechannel--docling_chunk_enabled:
+              componentInputParameter: docling_chunk_enabled
+            pipelinechannel--docling_chunk_max_tokens:
+              componentInputParameter: docling_chunk_max_tokens
+            pipelinechannel--docling_chunk_merge_peers:
+              componentInputParameter: docling_chunk_merge_peers
             pipelinechannel--docling_image_export_mode:
               componentInputParameter: docling_image_export_mode
             pipelinechannel--docling_num_threads:
@@ -599,6 +817,18 @@ root:
           name: import-pdfs
   inputDefinitions:
     parameters:
+      docling_chunk_enabled:
+        defaultValue: false
+        isOptional: true
+        parameterType: BOOLEAN
+      docling_chunk_max_tokens:
+        defaultValue: 512.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      docling_chunk_merge_peers:
+        defaultValue: true
+        isOptional: true
+        parameterType: BOOLEAN
       docling_image_export_mode:
         defaultValue: embedded
         isOptional: true

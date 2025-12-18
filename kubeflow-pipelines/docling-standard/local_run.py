@@ -3,7 +3,12 @@ from pathlib import Path
 from typing import List
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from common import create_pdf_splits, download_docling_models, import_pdfs
+from common import (
+    create_pdf_splits,
+    docling_chunk,
+    download_docling_models,
+    import_pdfs,
+)
 from kfp import dsl, local
 from standard_components import docling_convert_standard
 
@@ -15,6 +20,9 @@ def take_first_split(splits: List[List[str]]) -> List[str]:
 
 @dsl.pipeline()
 def convert_pipeline_local():
+    """
+    Local pipeline for testing standard conversion with chunking.
+    """
     importer = import_pdfs(
         filenames="2203.01017v2.pdf,2206.01062.pdf",
         base_url="https://github.com/docling-project/docling/raw/v2.43.0/tests/data/pdf",
@@ -32,15 +40,20 @@ def convert_pipeline_local():
 
     first_split = take_first_split(splits=pdf_splits.output)
 
-    docling_convert_standard(
+    converter = docling_convert_standard(
         input_path=importer.outputs["output_path"],
         artifacts_path=artifacts.outputs["output_path"],
         pdf_filenames=first_split.output,
     )
 
+    docling_chunk(
+        input_path=converter.outputs["output_path"],
+        max_tokens=512,
+        merge_peers=True,
+    )
+
 
 def main() -> None:
-    # Requires: pip install docker; and a Docker-compatible daemon (Docker or Podman socket)
     local.init(runner=local.DockerRunner())
     convert_pipeline_local()
 

@@ -5,7 +5,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import common components from the shared module
-from common import create_pdf_splits, download_docling_models, import_pdfs
+from common import (
+    create_pdf_splits,
+    docling_chunk,
+    download_docling_models,
+    import_pdfs,
+)
 from kfp import compiler, dsl
 from standard_components import docling_convert_standard
 
@@ -20,7 +25,7 @@ def convert_pipeline(
     pdf_filenames: str = "2203.01017v2.pdf,2206.01062.pdf,2305.03393v1-pg9.pdf,2305.03393v1.pdf,amt_handbook_sample.pdf,code_and_formula.pdf,multi_page.pdf,redp5110_sampled.pdf",
     # URL source params
     pdf_base_url: str = "https://github.com/docling-project/docling/raw/v2.43.0/tests/data/pdf",
-    # Docling params
+    # Docling conversion params
     docling_pdf_backend: str = "dlparse_v4",
     docling_image_export_mode: str = "embedded",
     docling_table_mode: str = "accurate",
@@ -34,6 +39,10 @@ def convert_pipeline(
     docling_enrich_formula: bool = False,
     docling_enrich_picture_classes: bool = False,
     docling_enrich_picture_description: bool = False,
+    # Chunking params - enable chunking after conversion
+    docling_chunk_enabled: bool = False,
+    docling_chunk_max_tokens: int = 512,
+    docling_chunk_merge_peers: bool = True,
 ):
     from kfp import kubernetes  # pylint: disable=import-outside-toplevel
 
@@ -64,6 +73,7 @@ def convert_pipeline(
     artifacts.set_caching_options(False)
 
     with dsl.ParallelFor(pdf_splits.output) as pdf_split:
+        # Step 4: Convert PDFs to Docling JSON and Markdown
         converter = docling_convert_standard(
             input_path=importer.outputs["output_path"],
             artifacts_path=artifacts.outputs["output_path"],
@@ -87,6 +97,21 @@ def convert_pipeline(
         converter.set_memory_limit("6G")
         converter.set_cpu_request("500m")
         converter.set_cpu_limit("4")
+
+        # Step 5: Optionally chunk the converted documents
+        # When docling_chunk_enabled=True, chunk the Docling JSON output
+        # Output files will be saved as {filename}_chunks.jsonl
+        with dsl.If(docling_chunk_enabled == True):  # noqa: E712
+            chunker = docling_chunk(
+                input_path=converter.outputs["output_path"],
+                max_tokens=docling_chunk_max_tokens,
+                merge_peers=docling_chunk_merge_peers,
+            )
+            chunker.set_caching_options(False)
+            chunker.set_memory_request("512M")
+            chunker.set_memory_limit("2G")
+            chunker.set_cpu_request("250m")
+            chunker.set_cpu_limit("2")
 
 
 if __name__ == "__main__":

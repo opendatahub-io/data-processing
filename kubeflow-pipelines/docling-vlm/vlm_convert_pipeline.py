@@ -5,7 +5,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import common components from the shared module
-from common import create_pdf_splits, download_docling_models, import_pdfs
+from common import (
+    create_pdf_splits,
+    docling_chunk,
+    download_docling_models,
+    import_pdfs,
+)
 from kfp import compiler, dsl
 from vlm_components import docling_convert_vlm
 
@@ -20,11 +25,15 @@ def convert_pipeline(
     pdf_filenames: str = "2203.01017v2.pdf",
     # URL source params
     pdf_base_url: str = "https://github.com/docling-project/docling/raw/v2.43.0/tests/data/pdf",
-    # Docling params
+    # Docling conversion params
     docling_num_threads: int = 4,
     docling_timeout_per_document: int = 300,
     docling_image_export_mode: str = "embedded",
     docling_remote_model_enabled: bool = False,
+    # Chunking params - enable chunking after conversion
+    docling_chunk_enabled: bool = False,
+    docling_chunk_max_tokens: int = 512,
+    docling_chunk_merge_peers: bool = True,
 ):
     from kfp import kubernetes  # pylint: disable=import-outside-toplevel
 
@@ -55,6 +64,7 @@ def convert_pipeline(
     artifacts.set_caching_options(False)
 
     with dsl.ParallelFor(pdf_splits.output) as pdf_split:
+        # Step 4: Convert PDFs to Docling JSON and Markdown using VLM
         remote_model_secret_mount_path = "/mnt/secrets"
         converter = docling_convert_vlm(
             input_path=importer.outputs["output_path"],
@@ -77,6 +87,21 @@ def convert_pipeline(
             mount_path=remote_model_secret_mount_path,
             optional=True,
         )
+
+        # Step 5: Optionally chunk the converted documents
+        # When docling_chunk_enabled=True, chunk the Docling JSON output
+        # Output files will be saved as {filename}_chunks.jsonl
+        with dsl.If(docling_chunk_enabled == True):  # noqa: E712
+            chunker = docling_chunk(
+                input_path=converter.outputs["output_path"],
+                max_tokens=docling_chunk_max_tokens,
+                merge_peers=docling_chunk_merge_peers,
+            )
+            chunker.set_caching_options(False)
+            chunker.set_memory_request("512M")
+            chunker.set_memory_limit("2G")
+            chunker.set_cpu_request("250m")
+            chunker.set_cpu_limit("2")
 
 
 if __name__ == "__main__":

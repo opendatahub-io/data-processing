@@ -17,6 +17,7 @@ Two KFP pipelines are included:
 - Two customizable pipelines to suit different needs:
   - Standard PDF pipeline (backends, OCR engines, table structure, image export)
   - VLM pipeline (Docling VLM or Granite-Vision pipeline options; remote VLM service supported)
+- **Optional document chunking** using Docling's HybridChunker 
 - Multiple input sources: HTTP/S URLs or S3/S3-compatible APIs like MinIO
 - Secret-based configuration:
   - Remote VLM API configuration via a single mounted Kubernetes Secret
@@ -24,21 +25,39 @@ Two KFP pipelines are included:
 - Tunable performance and quality: threads, timeouts, OCR forcing, table mode, PDF backends, enrichments
 - Works on OpenShift AI/Kubeflow Pipelines
 
+### Pipeline Architecture
+
+The following diagram shows the overall pipeline flow with optional chunking:
+
+![Pipeline Architecture](/assets/pipeline_architecture.png)
+
+**Input path:**
+- **PDF Files** → `import_pdfs` → `docling_convert_standard/vlm` → Markdown + Docling JSON
+
+When `chunk_enabled=True`, the conversion output flows through `docling_chunk` to produce chunked JSON files for RAG workflows.
+
 ## 📦 File Structure
 
 ```bash
 kubeflow-pipelines
 |
-|- docling-standard
-|   |- docling_convert_components.py
-|   |- docling_convert_pipeline.py
-|   |- docling_convert_pipeline_compiled.yaml (generated)
+|- common/
+|   |- __init__.py
+|   |- components.py          # Shared components (import_pdfs, docling_chunk, etc.)
+|   |- constants.py           # Shared constants (base images)
+|
+|- docling-standard/
+|   |- standard_components.py
+|   |- standard_convert_pipeline.py
+|   |- standard_convert_pipeline_compiled.yaml (generated)
+|   |- local_run.py           # Local testing script
 |   |- requirements.txt
 |
-|- docling-vlm
-    |- docling_convert_components.py
-    |- docling_convert_pipeline.py
-    |- docling_convert_pipeline_compiled.yaml (generated)
+|- docling-vlm/
+    |- vlm_components.py
+    |- vlm_convert_pipeline.py
+    |- vlm_convert_pipeline_compiled.yaml (generated)
+    |- local_run.py           # Local testing script
     |- requirements.txt
 ```
 
@@ -157,6 +176,23 @@ If you'd like to consume documents stored in an S3-compatible object storage rat
 
 Toggle enrichments via boolean parameters:
 - `docling_enrich_code`, `docling_enrich_formula`, `docling_enrich_picture_classes`, `docling_enrich_picture_description`.
+
+#### 7) Chunking converted documents
+
+Both pipelines support optional document chunking using Docling's [HybridChunker](https://docling-project.github.io/docling/examples/hybrid_chunking/). This splits converted documents into smaller, semantically meaningful chunks ideal for RAG (Retrieval-Augmented Generation) workflows.
+
+**Chunking parameters:**
+- `docling_chunk_enabled`: Set to `True` to enable chunking after conversion (default: `False`).
+- `docling_chunk_max_tokens`: Maximum tokens per chunk (default: `512`). Adjust based on your embedding model's context limit.
+- `docling_chunk_merge_peers`: If `True`, merge adjacent small chunks for better context (default: `True`).
+
+**Tokenizer:** Chunking uses the `sentence-transformers/all-MiniLM-L6-v2` tokenizer for accurate token counting, ensuring chunks are sized appropriately for common embedding models.
+
+**Chunked output location:**
+When chunking is enabled, an additional output file is created for each converted document:
+- **Filename format**: `{original_name}_chunks.jsonl`
+- **Location**: Same output directory as the converted `.json` and `.md` files
+- To find the output location, check the Graph of your pipeline Run, click the _docling-chunk_ box, and look in the _Output artifacts_ section.
 
 ## 🔧 Advanced customizations
 
