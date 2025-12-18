@@ -389,9 +389,9 @@ deploymentSpec:
           \n    if pipeline_type == \"standard\":\n        # Standard pipeline: download\
           \ traditional models\n        download_models(\n            output_dir=output_path_p,\n\
           \            progress=True,\n            with_layout=True,\n           \
-          \ with_tableformer=True,\n            with_easyocr=False,\n        )\n \
-          \   elif pipeline_type == \"vlm\" and remote_model_endpoint_enabled:\n \
-          \       # VLM pipeline with remote model endpoint: Download minimal required\
+          \ with_tableformer=True,\n            with_easyocr=True,\n        )\n  \
+          \  elif pipeline_type == \"vlm\" and remote_model_endpoint_enabled:\n  \
+          \      # VLM pipeline with remote model endpoint: Download minimal required\
           \ models\n        # Only models set are what lives in fabianofranz repo\n\
           \        # TODO: figure out what needs to be downloaded or removed\n   \
           \     download_models(\n            output_dir=output_path_p,\n        \

@@ -200,7 +200,7 @@ def download_docling_models(
             progress=True,
             with_layout=True,
             with_tableformer=True,
-            with_easyocr=False,
+            with_easyocr=True,
         )
     elif pipeline_type == "vlm" and remote_model_endpoint_enabled:
         # VLM pipeline with remote model endpoint: Download minimal required models

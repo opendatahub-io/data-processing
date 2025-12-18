@@ -24,7 +24,7 @@ def docling_convert_standard(
     timeout_per_document: int = 300,
     ocr: bool = True,
     force_ocr: bool = False,
-    ocr_engine: str = "tesseract",
+    ocr_engine: str = "easyocr",
     allow_external_plugins: bool = False,
     enrich_code: bool = False,
     enrich_formula: bool = False,

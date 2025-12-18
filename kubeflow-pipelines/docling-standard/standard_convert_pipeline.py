@@ -28,7 +28,7 @@ def convert_pipeline(
     docling_timeout_per_document: int = 300,
     docling_ocr: bool = True,
     docling_force_ocr: bool = False,
-    docling_ocr_engine: str = "tesseract",
+    docling_ocr_engine: str = "easyocr",
     docling_allow_external_plugins: bool = False,
     docling_enrich_code: bool = False,
     docling_enrich_formula: bool = False,

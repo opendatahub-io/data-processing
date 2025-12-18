@@ -11,7 +11,7 @@
 #    docling_image_export_mode: str [Default: 'embedded']
 #    docling_num_threads: int [Default: 4.0]
 #    docling_ocr: bool [Default: True]
-#    docling_ocr_engine: str [Default: 'tesseract']
+#    docling_ocr_engine: str [Default: 'easyocr']
 #    docling_pdf_backend: str [Default: 'dlparse_v4']
 #    docling_table_mode: str [Default: 'accurate']
 #    docling_timeout_per_document: int [Default: 300.0]
@@ -98,7 +98,7 @@ components:
           isOptional: true
           parameterType: BOOLEAN
         ocr_engine:
-          defaultValue: tesseract
+          defaultValue: easyocr
           description: Engine to use for OCR.
           isOptional: true
           parameterType: STRING
@@ -327,7 +327,7 @@ deploymentSpec:
           \    image_export_mode: str = \"embedded\",\n    table_mode: str = \"accurate\"\
           ,\n    num_threads: int = 4,\n    timeout_per_document: int = 300,\n   \
           \ ocr: bool = True,\n    force_ocr: bool = False,\n    ocr_engine: str =\
-          \ \"tesseract\",\n    allow_external_plugins: bool = False,\n    enrich_code:\
+          \ \"easyocr\",\n    allow_external_plugins: bool = False,\n    enrich_code:\
           \ bool = False,\n    enrich_formula: bool = False,\n    enrich_picture_classes:\
           \ bool = False,\n    enrich_picture_description: bool = False,\n):\n   \
           \ \"\"\"\n    Convert a list of PDF files to JSON and Markdown using Docling\
@@ -476,9 +476,9 @@ deploymentSpec:
           \n    if pipeline_type == \"standard\":\n        # Standard pipeline: download\
           \ traditional models\n        download_models(\n            output_dir=output_path_p,\n\
           \            progress=True,\n            with_layout=True,\n           \
-          \ with_tableformer=True,\n            with_easyocr=False,\n        )\n \
-          \   elif pipeline_type == \"vlm\" and remote_model_endpoint_enabled:\n \
-          \       # VLM pipeline with remote model endpoint: Download minimal required\
+          \ with_tableformer=True,\n            with_easyocr=True,\n        )\n  \
+          \  elif pipeline_type == \"vlm\" and remote_model_endpoint_enabled:\n  \
+          \      # VLM pipeline with remote model endpoint: Download minimal required\
           \ models\n        # Only models set are what lives in fabianofranz repo\n\
           \        # TODO: figure out what needs to be downloaded or removed\n   \
           \     download_models(\n            output_dir=output_path_p,\n        \
@@ -742,7 +742,7 @@ root:
         isOptional: true
         parameterType: BOOLEAN
       docling_ocr_engine:
-        defaultValue: tesseract
+        defaultValue: easyocr
         isOptional: true
         parameterType: STRING
       docling_pdf_backend:
