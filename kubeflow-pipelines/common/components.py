@@ -241,3 +241,172 @@ def download_docling_models(
         raise ValueError(
             f"Invalid pipeline_type: {pipeline_type}. Must be 'standard' or 'vlm'"
         )
+
+
+@dsl.component(
+    base_image=DOCLING_BASE_IMAGE,
+)
+def docling_chunk(
+    input_path: dsl.Input[dsl.Artifact],
+    output_path: dsl.Output[dsl.Artifact],
+    max_tokens: int = 512,
+    merge_peers: bool = True,
+):
+    """
+    Chunk Docling documents using HybridChunker. Takes converted docling JSON files as input
+    and produces chunked JSONL files with semantic chunks suitable for RAG.
+
+    Output format is JSONL (one JSON object per line) for easy inspection and streaming.
+
+    Args:
+        input_path: Path to the input directory containing Docling JSON files
+        output_path: Path to the output directory for the chunked JSONL files
+        max_tokens: Maximum number of tokens per chunk
+        merge_peers: Whether to merge smaller chunks at the same level
+    """
+    import json  # pylint: disable=import-outside-toplevel
+    from datetime import datetime, timezone  # pylint: disable=import-outside-toplevel
+    from pathlib import Path  # pylint: disable=import-outside-toplevel
+
+    # HybridChunker = Docling's smart chunking class that combines:
+    # 1. Document structure awareness
+    # 2. Token-based splitting
+    from docling.chunking import HybridChunker  # pylint: disable=import-outside-toplevel
+    from docling_core.transforms.chunker.tokenizer.huggingface import (
+        HuggingFaceTokenizer,
+    )  # pylint: disable=import-outside-toplevel
+    from docling_core.types import DoclingDocument  # pylint: disable=import-outside-toplevel
+    from transformers import AutoTokenizer  # pylint: disable=import-outside-toplevel
+
+    # Convert KFP artifact paths to Path objects
+    input_path_p = Path(input_path.path)
+    output_path_p = Path(output_path.path)
+    output_path_p.mkdir(parents=True, exist_ok=True)
+
+    # Initialize tokenizer for HybridChunker (new API)
+    # Using a lightweight sentence-transformer model for tokenization
+    EMBED_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
+    try:
+        hf_tokenizer = AutoTokenizer.from_pretrained(
+            EMBED_MODEL_ID,
+            resume_download=True,
+            timeout=60,
+        )
+        print(f"docling-chunk: loaded tokenizer from {EMBED_MODEL_ID}", flush=True)
+    except Exception as e:
+        print(f"docling-chunk: ERROR loading tokenizer: {e}", flush=True)
+        raise RuntimeError(
+            f"Failed to load tokenizer model {EMBED_MODEL_ID}. "
+            "Ensure network access to HuggingFace Hub or pre-download the model."
+        ) from e
+
+    tokenizer = HuggingFaceTokenizer(
+        tokenizer=hf_tokenizer,
+        max_tokens=max_tokens,
+    )
+
+    # Initialize Hybrid chunker with user-specified parameters
+    # tokenizer: The tokenizer wrapper to use for counting tokens (includes max_tokens)
+    # merge_peers: if true, smaller adjacent chunks will be merged together
+    chunker = HybridChunker(
+        tokenizer=tokenizer,
+        merge_peers=merge_peers,
+    )
+
+    # Find all JSON files in the input directory
+    json_files = list(input_path_p.glob("*.json"))
+    if not json_files:
+        print(f"docling-chunk: No JSON files found in {input_path_p}", flush=True)
+        return
+
+    print(
+        f"docling-chunk: processing {len(json_files)} files with max_tokens={max_tokens} and merge_peers={merge_peers}",
+        flush=True,
+    )
+
+    # Track processing results
+    processed_count = 0
+    skipped_files = []
+
+    # Process each file
+    for json_file in json_files:
+        print(f"docling-chunk: processing {json_file}", flush=True)
+
+        # Load and validate the JSON file
+        try:
+            with open(json_file, "r", encoding="utf-8") as f:
+                doc_data = json.load(f)
+        except json.JSONDecodeError as e:
+            print(
+                f"docling-chunk: skipping {json_file.name} - invalid JSON: {e}",
+                flush=True,
+            )
+            skipped_files.append((json_file.name, f"invalid JSON: {e}"))
+            continue
+
+        # Parse the JSON data into a DoclingDocument object
+        # This validates that the JSON conforms to the DoclingDocument schema
+        try:
+            doc = DoclingDocument.model_validate(doc_data)
+        except Exception as e:
+            # Catches pydantic.ValidationError and any other validation issues
+            print(
+                f"docling-chunk: skipping {json_file.name} - not a valid DoclingDocument: {e}",
+                flush=True,
+            )
+            skipped_files.append((json_file.name, f"validation failed: {e}"))
+            continue
+
+        # Chunk the document using HybridChunker
+        chunks = list(chunker.chunk(dl_doc=doc))
+
+        # Generate output filename: original_name_chunks.jsonl
+        output_filename = f"{json_file.stem}_chunks.jsonl"
+        output_file = output_path_p / output_filename
+
+        # Get current timestamp in ISO format
+        timestamp = datetime.now(timezone.utc).isoformat()
+
+        # Chunking config (for reproducibility)
+        chunking_config = {
+            "max_tokens": max_tokens,
+            "merge_peers": merge_peers,
+            "tokenizer_model": EMBED_MODEL_ID,
+        }
+
+        # Write chunks as JSONL (one JSON object per line)
+        with open(output_file, "w", encoding="utf-8") as f:
+            for idx, chunk in enumerate(chunks):
+                # Get contextualized text for this chunk
+                chunk_text = chunker.contextualize(chunk=chunk)
+
+                # Build the chunk object
+                chunk_obj = {
+                    "timestamp": timestamp,
+                    "source_document": json_file.name,
+                    "chunk_index": idx,
+                    "chunking_config": chunking_config,
+                    "text": chunk_text,
+                }
+
+                # Write as a single line of JSON
+                f.write(json.dumps(chunk_obj, ensure_ascii=False) + "\n")
+
+        print(
+            f"docling-chunk: saved {len(chunks)} chunks to {output_filename}",
+            flush=True,
+        )
+        processed_count += 1
+
+    # Report summary
+    print(
+        f"docling-chunk: done - processed {processed_count}/{len(json_files)} files",
+        flush=True,
+    )
+    if skipped_files:
+        print(
+            f"docling-chunk: skipped {len(skipped_files)} invalid files:",
+            flush=True,
+        )
+        for filename, reason in skipped_files:
+            print(f"  - {filename}: {reason}", flush=True)

@@ -5,7 +5,12 @@ from typing import List
 # Add the parent directory to Python path to find common
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from common import create_pdf_splits, download_docling_models, import_pdfs
+from common import (
+    create_pdf_splits,
+    docling_chunk,
+    download_docling_models,
+    import_pdfs,
+)
 from kfp import dsl, local
 from vlm_components import docling_convert_vlm
 
@@ -17,6 +22,9 @@ def take_first_split(splits: List[List[str]]) -> List[str]:
 
 @dsl.pipeline()
 def convert_pipeline_local():
+    """
+    Local pipeline for testing VLM conversion with chunking.
+    """
     importer = import_pdfs(
         filenames="2305.03393v1-pg9.pdf",
         base_url="https://github.com/docling-project/docling/raw/v2.43.0/tests/data/pdf",
@@ -34,15 +42,20 @@ def convert_pipeline_local():
 
     first_split = take_first_split(splits=pdf_splits.output)
 
-    docling_convert_vlm(
+    converter = docling_convert_vlm(
         input_path=importer.outputs["output_path"],
         artifacts_path=artifacts.outputs["output_path"],
         pdf_filenames=first_split.output,
     )
 
+    docling_chunk(
+        input_path=converter.outputs["output_path"],
+        max_tokens=512,
+        merge_peers=True,
+    )
+
 
 def main() -> None:
-    # Requires: pip install docker; and a Docker-compatible daemon (Docker or Podman socket)
     local.init(runner=local.DockerRunner())
     convert_pipeline_local()
 
