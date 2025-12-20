@@ -44,6 +44,7 @@ def convert_pipeline_local():
         input_path=importer.outputs["output_path"],
         artifacts_path=artifacts.outputs["output_path"],
         pdf_filenames=first_split.output,
+        ocr=False,
     )
 
     docling_chunk(

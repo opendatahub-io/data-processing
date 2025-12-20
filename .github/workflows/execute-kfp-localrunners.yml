@@ -19,10 +19,56 @@ on:
         description: "Pull request number or branch name"
         required: true
         default: "main"
+env:
+  QUAY_REGISTRY: quay.io
+  INSTANCE_TYPE: "g6e.xlarge"
 
 jobs:
-  test-local-pipelines:
+  launch-ec2-runner:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # This is required for OIDC (AWS auth)
+      contents: read
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
+        with:
+          role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.DATA_PROCESSING_IAM_ROLE }}"
+          aws-region: us-east-2
+          role-session-name: odh-data-processing  # For tracking in CloudTrail
+
+      - name: Start Data Processing EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@a6dbcefcf8a31a861f5e078bb153ed332130c512 # v2.4.3
+        with:
+          mode: start
+          github-token: "${{ secrets.DATA_PROCESSING_GH_PERSONAL_ACCESS_TOKEN }}"
+          ec2-instance-type: "${{ env.INSTANCE_TYPE }}"
+          availability-zones-config: >
+            [
+              {"imageId": "${{ vars.US_EAST_2_AMI_ID }}", "subnetId": "${{ vars.US_EAST_2A_SUBNET_ID }}", "securityGroupId": "${{ vars.US_EAST_2_SG_ID }}"},
+              {"imageId": "${{ vars.US_EAST_2_AMI_ID }}", "subnetId": "${{ vars.US_EAST_2B_SUBNET_ID }}", "securityGroupId": "${{ vars.US_EAST_2_SG_ID }}"},
+              {"imageId": "${{ vars.US_EAST_2_AMI_ID }}", "subnetId": "${{ vars.US_EAST_2C_SUBNET_ID }}", "securityGroupId": "${{ vars.US_EAST_2_SG_ID }}"}
+            ]
+          iam-role-name: "${{ vars.DATA_PROCESSING_IAM_ROLE }}"
+          aws-resource-tags: >
+            [
+              {"Key": "Name", "Value": "data-processing-gh-runner"},
+              {"Key": "GitHubRepository", "Value": "${{ github.repository }}"},
+              {"Key": "GitHubRef", "Value": "${{ github.ref }}"},
+              {"Key": "GitHubPR", "Value": "${{ github.event.number }}"}
+            ]  
+  test-local-pipelines:
+    needs:
+      - launch-ec2-runner
+    runs-on: ${{ needs.launch-ec2-runner.outputs.label }}
     strategy:
       fail-fast: false
       matrix:
@@ -31,23 +77,68 @@ jobs:
           #- docling-vlm
     
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      
+      - name: Setup Environment
+        run: echo "Running on EC2 ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
+
+      - uses: actions/checkout@v4
+      - name: Setup System Dependencies (Python)
+        run: |
+          # 1. Install Python and basic tools
+          sudo dnf install -y python3.11 python3-pip 
       - name: Install minimal requirements
-        run: pip install docker kfp
-      
+        run: |
+          # Setup Pip
+          /usr/bin/python3.11 -m pip install --upgrade pip 
+          
+          # 1. Install Requirements (Generic)
+          # We do this first so we can overwrite any bad CPU-versions it pulls in
+          /usr/bin/python3.11 -m pip install docker kfp==2.14.6    
       - name: Create output directory
         working-directory: kubeflow-pipelines/${{ matrix.pipeline }}
         run: |
           mkdir -p local_outputs
           chmod 755 local_outputs
+      - name: Log in to Quay Container Registry
+        uses: docker/login-action@v3
+        with:
+         registry: ${{ env.QUAY_REGISTRY }}
+         username: ${{ secrets.QUAY_USERNAME }}
+         password: ${{ secrets.QUAY_PASSWORD }}
       
       - name: Run local pipeline
+        timeout-minutes: 15
         working-directory: kubeflow-pipelines/${{ matrix.pipeline }}
-        run: python local_run.py
+        run: /usr/bin/python3.11 local_run.py
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.pipeline }}-logs
+          path: kubeflow-pipelines/${{ matrix.pipeline }}/local_outputs/
+          retention-days: 7
+  stop-ec2-runner:
+    permissions:
+      id-token: write # This is required for OIDC (AWS auth)
+      contents: read
+    needs:
+      - launch-ec2-runner
+      - test-local-pipelines
+      
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
+        with:
+          role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.DATA_PROCESSING_IAM_ROLE }}"
+          aws-region: us-east-2
+          role-session-name: odh-data-processing  # For tracking in CloudTrail
+
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@a6dbcefcf8a31a861f5e078bb153ed332130c512 # v2.4.3
+        with:
+          mode: stop
+          github-token: "${{ secrets.DATA_PROCESSING_GH_PERSONAL_ACCESS_TOKEN }}"
+          label: ${{ needs.launch-ec2-runner.outputs.label }}
+          ec2-instance-id: ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}
+
