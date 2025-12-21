@@ -85,6 +85,12 @@ jobs:
         run: |
           # 1. Install Python and basic tools
           sudo dnf install -y python3.11 python3-pip 
+          # Start Docker daemon
+          sudo systemctl start docker
+          sudo systemctl enable docker
+          
+          # Add runner user to docker group
+          sudo usermod -aG docker $USER 
       - name: Install minimal requirements
         run: |
           # Setup Pip
