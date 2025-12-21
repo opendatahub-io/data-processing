@@ -81,21 +81,22 @@ jobs:
         run: echo "Running on EC2 ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
 
       - uses: actions/checkout@v4
-      - name: Setup System Dependencies (Python)
+      - name: Setup System Dependencies (Python + Podman)
         run: |
-          # 1. Install Python and basic tools
-          sudo dnf install -y python3.11 python3-pip 
-          # Start Docker daemon
-          sudo systemctl start docker
-          sudo systemctl enable docker
+          # Install Python and Podman
+          sudo dnf install -y python3.11 python3-pip podman
           
-          # Add runner user to docker group
-          sudo usermod -aG docker $USER 
+          # Start Podman socket (Docker-compatible API)
+          sudo systemctl start podman.socket
+          sudo systemctl enable podman.socket
+          
+          # Create Docker symlink for compatibility
+          sudo ln -sf /usr/bin/podman /usr/local/bin/docker 
       - name: Install minimal requirements
         run: |
           # Setup Pip
           /usr/bin/python3.11 -m ensurepip --upgrade >/dev/null 2>&1 
-          /usr/bin/python3.11 -m pip install --upgrade pip
+          /usr/bin/python3.11 -m pip install --upgrade pip 
           
           # 1. Install Requirements (Generic)
           # We do this first so we can overwrite any bad CPU-versions it pulls in
