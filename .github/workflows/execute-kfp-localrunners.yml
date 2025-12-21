@@ -86,12 +86,15 @@ jobs:
           # Install Python and Podman
           sudo dnf install -y python3.11 python3-pip podman
           
-          # Enable and start Podman socket (Docker-compatible API)
+          # Use system (root) Podman socket to avoid permission issues
           sudo systemctl enable --now podman.socket
           
-          # Create symlink for Docker socket compatibility
+          # Create symlink for Docker socket compatibility (system socket)
           sudo mkdir -p /var/run
           sudo ln -sf /run/podman/podman.sock /var/run/docker.sock
+          
+          # Set permissions on the socket so runner can access it
+          sudo chmod 666 /run/podman/podman.sock
           
           # Create Docker CLI symlink for compatibility
           sudo ln -sf /usr/bin/podman /usr/local/bin/docker 
@@ -108,7 +111,10 @@ jobs:
         working-directory: kubeflow-pipelines/${{ matrix.pipeline }}
         run: |
           mkdir -p local_outputs
-          chmod 777 local_outputs
+          # Make local_outputs world-writable for Podman containers
+          chmod -R 777 local_outputs
+          # Ensure parent directories are accessible
+          chmod a+x $(pwd)
       - name: Log in to Quay Container Registry
         uses: docker/login-action@v3
         with:
@@ -119,6 +125,8 @@ jobs:
       - name: Run local pipeline
         timeout-minutes: 15
         working-directory: kubeflow-pipelines/${{ matrix.pipeline }}
+        env:
+          DOCKER_HOST: unix:///var/run/docker.sock
         run: /usr/bin/python3.11 local_run.py
       - name: Upload logs on failure
         if: failure()
