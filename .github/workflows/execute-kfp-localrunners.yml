@@ -86,11 +86,14 @@ jobs:
           # Install Python and Podman
           sudo dnf install -y python3.11 python3-pip podman
           
-          # Start Podman socket (Docker-compatible API)
-          sudo systemctl start podman.socket
-          sudo systemctl enable podman.socket
+          # Enable and start Podman socket (Docker-compatible API)
+          sudo systemctl enable --now podman.socket
           
-          # Create Docker symlink for compatibility
+          # Create symlink for Docker socket compatibility
+          sudo mkdir -p /var/run
+          sudo ln -sf /run/podman/podman.sock /var/run/docker.sock
+          
+          # Create Docker CLI symlink for compatibility
           sudo ln -sf /usr/bin/podman /usr/local/bin/docker 
       - name: Install minimal requirements
         run: |
