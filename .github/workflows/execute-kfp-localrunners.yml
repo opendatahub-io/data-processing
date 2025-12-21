@@ -94,11 +94,11 @@ jobs:
           sudo systemctl start docker
           sudo systemctl enable docker
           
-          # Add runner user to docker group
-          sudo usermod -aG docker $USER
+          # Add current user to docker group
+          sudo usermod -aG docker $(whoami)
           
-          # Restart docker to ensure group membership takes effect
-          sudo systemctl restart docker 
+          # Apply group membership without logout (temporary for this session)
+          sudo chmod 666 /var/run/docker.sock 
       - name: Install minimal requirements
         run: |
           # Setup Pip
