@@ -301,7 +301,7 @@ deploymentSpec:
           \ for path in input_path_p.glob(\"*.pdf\")]\n    all_splits = [all_pdfs[i::num_splits]\
           \ for i in range(num_splits)]\n    filled_splits = list(filter(None, all_splits))\n\
           \    return filled_splits\n\n"
-        image: registry.access.redhat.com/ubi9/python-311:9.6-1755074620
+        image: quay.io/amaredia/aipcc-docling-image
     exec-docling-chunk:
       container:
         args:
@@ -415,7 +415,7 @@ deploymentSpec:
           \            f\"docling-chunk: skipped {len(skipped_files)} invalid files:\"\
           ,\n            flush=True,\n        )\n        for filename, reason in skipped_files:\n\
           \            print(f\"  - {filename}: {reason}\", flush=True)\n\n"
-        image: quay.io/fabianofranz/docling-ubi9:2.54.0
+        image: quay.io/amaredia/aipcc-docling-image
         resources:
           cpuLimit: 2.0
           cpuRequest: 0.25
@@ -547,7 +547,7 @@ deploymentSpec:
           \        result.document.save_as_markdown(\n            output_md_path,\
           \ image_mode=ImageRefMode(image_export_mode)\n        )\n\n    print(\"\
           docling-vlm-convert: done\", flush=True)\n\n"
-        image: quay.io/fabianofranz/docling-ubi9:2.54.0
+        image: quay.io/amaredia/aipcc-docling-image
         resources:
           cpuLimit: 4.0
           cpuRequest: 0.5
@@ -624,7 +624,7 @@ deploymentSpec:
           \        )\n    else:\n        raise ValueError(\n            f\"Invalid\
           \ pipeline_type: {pipeline_type}. Must be 'standard' or 'vlm'\"\n      \
           \  )\n\n"
-        image: quay.io/fabianofranz/docling-ubi9:2.54.0
+        image: quay.io/amaredia/aipcc-docling-image
     exec-import-pdfs:
       container:
         args:
@@ -718,7 +718,7 @@ deploymentSpec:
           \ in resp.iter_content(chunk_size=8192):\n                        if chunk:\n\
           \                            f.write(chunk)\n\n    print(\"import-test-pdfs:\
           \ done\", flush=True)\n\n"
-        image: registry.access.redhat.com/ubi9/python-311:9.6-1755074620
+        image: quay.io/amaredia/aipcc-docling-image
 pipelineInfo:
   description: Docling VLM convert pipeline by the Data Processing Team
   name: data-processing-docling-vlm-pipeline
