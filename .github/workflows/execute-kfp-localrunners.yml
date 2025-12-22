@@ -19,6 +19,14 @@ on:
         description: "Pull request number or branch name"
         required: true
         default: "main"
+      python_base_image:
+        description: "Override PYTHON_BASE_IMAGE (leave empty to use default)"
+        required: false
+        default: ""
+      docling_base_image:
+        description: "Override DOCLING_BASE_IMAGE (leave empty to use default)"
+        required: false
+        default: ""
 env:
   QUAY_REGISTRY: quay.io
   INSTANCE_TYPE: "g6e.xlarge"
@@ -123,7 +131,15 @@ jobs:
       - name: Run local pipeline
         timeout-minutes: 15
         working-directory: kubeflow-pipelines/${{ matrix.pipeline }}
-        run: /usr/bin/python3.11 local_run.py
+        run: |
+          # Only set env vars if inputs are provided (non-empty)
+          if [ -n "${{ github.event.inputs.python_base_image }}" ]; then
+            export PYTHON_BASE_IMAGE="${{ github.event.inputs.python_base_image }}"
+          fi
+          if [ -n "${{ github.event.inputs.docling_base_image }}" ]; then
+            export DOCLING_BASE_IMAGE="${{ github.event.inputs.docling_base_image }}"
+          fi
+          /usr/bin/python3.11 local_run.py
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
