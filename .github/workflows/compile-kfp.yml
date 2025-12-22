@@ -15,7 +15,6 @@ on:
       - "kubeflow-pipelines/docling-vlm/**"
       - "kubeflow-pipelines/common/**"
       - ".github/workflows/compile-kfp.yml"
-
 permissions:
   contents: read
 
@@ -48,7 +47,7 @@ jobs:
         working-directory: ${{ matrix.dir }}
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt 
 
       - name: Compile and compare (${{ matrix.name }})
         run: |
