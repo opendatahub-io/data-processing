@@ -301,7 +301,7 @@ deploymentSpec:
           \ for path in input_path_p.glob(\"*.pdf\")]\n    all_splits = [all_pdfs[i::num_splits]\
           \ for i in range(num_splits)]\n    filled_splits = list(filter(None, all_splits))\n\
           \    return filled_splits\n\n"
-        image: quay.io/amaredia/aipcc-docling-image
+        image: registry.access.redhat.com/ubi9/python-311:9.6-1755074620
     exec-docling-chunk:
       container:
         args:
@@ -415,7 +415,7 @@ deploymentSpec:
           \            f\"docling-chunk: skipped {len(skipped_files)} invalid files:\"\
           ,\n            flush=True,\n        )\n        for filename, reason in skipped_files:\n\
           \            print(f\"  - {filename}: {reason}\", flush=True)\n\n"
-        image: quay.io/amaredia/aipcc-docling-image
+        image: quay.io/fabianofranz/docling-ubi9:2.54.0
         resources:
           cpuLimit: 2.0
           cpuRequest: 0.25
@@ -547,7 +547,7 @@ deploymentSpec:
           \        result.document.save_as_markdown(\n            output_md_path,\
           \ image_mode=ImageRefMode(image_export_mode)\n        )\n\n    print(\"\
           docling-vlm-convert: done\", flush=True)\n\n"
-        image: quay.io/amaredia/aipcc-docling-image
+        image: quay.io/fabianofranz/docling-ubi9:2.54.0
         resources:
           cpuLimit: 4.0
           cpuRequest: 0.5
@@ -588,8 +588,8 @@ deploymentSpec:
           \ bool = False,\n):\n    \"\"\"\n    Download Docling models based on pipeline\
           \ type and configuration.\n\n    This unified component handles model downloading\
           \ for different pipeline types:\n    - standard : Download traditional Docling\
-          \ models (layout, tableformer, easyocr)\n    - vlm : Download Docling VLM\
-          \ models (smolvlm, smoldocling) for local inference\n             When remote_model_endpoint_enabled=True,\
+          \ models (layout, tableformer)\n    - vlm : Download Docling VLM models\
+          \ (smolvlm, smoldocling) for local inference\n             When remote_model_endpoint_enabled=True,\
           \ downloads minimal models for remote inference\n\n    Args:\n        output_path:\
           \ Path to the output directory for Docling models\n        pipeline_type:\
           \ Type of pipeline (standard, vlm)\n        remote_model_endpoint_enabled:\
@@ -601,9 +601,9 @@ deploymentSpec:
           \n    if pipeline_type == \"standard\":\n        # Standard pipeline: download\
           \ traditional models\n        download_models(\n            output_dir=output_path_p,\n\
           \            progress=True,\n            with_layout=True,\n           \
-          \ with_tableformer=True,\n            with_easyocr=True,\n        )\n  \
-          \  elif pipeline_type == \"vlm\" and remote_model_endpoint_enabled:\n  \
-          \      # VLM pipeline with remote model endpoint: Download minimal required\
+          \ with_tableformer=True,\n            with_easyocr=False,\n        )\n \
+          \   elif pipeline_type == \"vlm\" and remote_model_endpoint_enabled:\n \
+          \       # VLM pipeline with remote model endpoint: Download minimal required\
           \ models\n        # Only models set are what lives in fabianofranz repo\n\
           \        # TODO: figure out what needs to be downloaded or removed\n   \
           \     download_models(\n            output_dir=output_path_p,\n        \
@@ -624,7 +624,7 @@ deploymentSpec:
           \        )\n    else:\n        raise ValueError(\n            f\"Invalid\
           \ pipeline_type: {pipeline_type}. Must be 'standard' or 'vlm'\"\n      \
           \  )\n\n"
-        image: quay.io/amaredia/aipcc-docling-image
+        image: quay.io/fabianofranz/docling-ubi9:2.54.0
     exec-import-pdfs:
       container:
         args:
@@ -718,7 +718,7 @@ deploymentSpec:
           \ in resp.iter_content(chunk_size=8192):\n                        if chunk:\n\
           \                            f.write(chunk)\n\n    print(\"import-test-pdfs:\
           \ done\", flush=True)\n\n"
-        image: quay.io/amaredia/aipcc-docling-image
+        image: registry.access.redhat.com/ubi9/python-311:9.6-1755074620
 pipelineInfo:
   description: Docling VLM convert pipeline by the Data Processing Team
   name: data-processing-docling-vlm-pipeline
