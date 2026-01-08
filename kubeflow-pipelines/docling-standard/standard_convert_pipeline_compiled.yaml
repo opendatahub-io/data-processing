@@ -2,6 +2,7 @@
 # Name: data-processing-docling-standard-pipeline
 # Description: Docling standard convert pipeline by the Data Processing Team
 # Inputs:
+#    docling_accelerator_device: str [Default: 'auto']
 #    docling_allow_external_plugins: bool [Default: False]
 #    docling_chunk_enabled: bool [Default: False]
 #    docling_chunk_max_tokens: int [Default: 512.0]
@@ -112,6 +113,11 @@ components:
             schemaVersion: 0.0.1
           description: Path to the input directory containing PDF files.
       parameters:
+        accelerator_device:
+          defaultValue: auto
+          description: Accelerator device to use (auto, cpu, gpu).
+          isOptional: true
+          parameterType: STRING
         allow_external_plugins:
           defaultValue: false
           description: Whether or not to allow external plugins.
@@ -243,6 +249,8 @@ components:
               input_path:
                 componentInputArtifact: pipelinechannel--import-pdfs-output_path
             parameters:
+              accelerator_device:
+                componentInputParameter: pipelinechannel--docling_accelerator_device
               allow_external_plugins:
                 componentInputParameter: pipelinechannel--docling_allow_external_plugins
               enrich_code:
@@ -288,6 +296,8 @@ components:
           parameterType: LIST
         pipelinechannel--create-pdf-splits-Output-loop-item:
           parameterType: LIST
+        pipelinechannel--docling_accelerator_device:
+          parameterType: STRING
         pipelinechannel--docling_allow_external_plugins:
           parameterType: BOOLEAN
         pipelinechannel--docling_chunk_enabled:
@@ -539,24 +549,26 @@ deploymentSpec:
           \    image_export_mode: str = \"embedded\",\n    table_mode: str = \"accurate\"\
           ,\n    num_threads: int = 4,\n    timeout_per_document: int = 300,\n   \
           \ ocr: bool = True,\n    force_ocr: bool = False,\n    ocr_engine: str =\
-          \ \"easyocr\",\n    allow_external_plugins: bool = False,\n    enrich_code:\
-          \ bool = False,\n    enrich_formula: bool = False,\n    enrich_picture_classes:\
-          \ bool = False,\n    enrich_picture_description: bool = False,\n):\n   \
-          \ \"\"\"\n    Convert a list of PDF files to JSON and Markdown using Docling\
-          \ (Standard Pipeline).\n\n    Args:\n        input_path: Path to the input\
-          \ directory containing PDF files.\n        artifacts_path: Path to the directory\
-          \ containing Docling models.\n        output_path: Path to the output directory\
-          \ for converted JSON and Markdown files.\n        pdf_filenames: List of\
-          \ PDF file names to process.\n        pdf_backend: Backend to use for PDF\
-          \ processing.\n        image_export_mode: Mode to export images.\n     \
-          \   table_mode: Mode to detect tables.\n        num_threads: Number of threads\
-          \ to use per document processing.\n        timeout_per_document: Timeout\
-          \ per document processing.\n        ocr: Whether or not to use OCR if needed.\n\
-          \        force_ocr: Whether or not to force OCR.\n        ocr_engine: Engine\
-          \ to use for OCR.\n        allow_external_plugins: Whether or not to allow\
-          \ external plugins.\n        enrich_code: Whether or not to enrich code.\n\
-          \        enrich_formula: Whether or not to enrich formula.\n        enrich_picture_classes:\
-          \ Whether or not to enrich picture classes.\n        enrich_picture_description:\
+          \ \"easyocr\",\n    accelerator_device: str = \"auto\",\n    allow_external_plugins:\
+          \ bool = False,\n    enrich_code: bool = False,\n    enrich_formula: bool\
+          \ = False,\n    enrich_picture_classes: bool = False,\n    enrich_picture_description:\
+          \ bool = False,\n):\n    \"\"\"\n    Convert a list of PDF files to JSON\
+          \ and Markdown using Docling (Standard Pipeline).\n\n    Args:\n       \
+          \ input_path: Path to the input directory containing PDF files.\n      \
+          \  artifacts_path: Path to the directory containing Docling models.\n  \
+          \      output_path: Path to the output directory for converted JSON and\
+          \ Markdown files.\n        pdf_filenames: List of PDF file names to process.\n\
+          \        pdf_backend: Backend to use for PDF processing.\n        image_export_mode:\
+          \ Mode to export images.\n        table_mode: Mode to detect tables.\n \
+          \       num_threads: Number of threads to use per document processing.\n\
+          \        timeout_per_document: Timeout per document processing.\n      \
+          \  ocr: Whether or not to use OCR if needed.\n        force_ocr: Whether\
+          \ or not to force OCR.\n        ocr_engine: Engine to use for OCR.\n   \
+          \     accelerator_device: Accelerator device to use (auto, cpu, gpu).\n\
+          \        allow_external_plugins: Whether or not to allow external plugins.\n\
+          \        enrich_code: Whether or not to enrich code.\n        enrich_formula:\
+          \ Whether or not to enrich formula.\n        enrich_picture_classes: Whether\
+          \ or not to enrich picture classes.\n        enrich_picture_description:\
           \ Whether or not to enrich picture description.\n    \"\"\"\n    from importlib\
           \ import import_module  # pylint: disable=import-outside-toplevel\n    from\
           \ pathlib import Path  # pylint: disable=import-outside-toplevel\n\n   \
@@ -574,15 +586,22 @@ deploymentSpec:
           \    from docling_core.types.doc.base import (\n        ImageRefMode,\n\
           \    )  # pylint: disable=import-outside-toplevel\n\n    if not pdf_filenames:\n\
           \        raise ValueError(\n            \"pdf_filenames must be provided\
-          \ with the list of file names to process\"\n        )\n\n    allowed_pdf_backends\
-          \ = {e.value for e in PdfBackend}\n    if pdf_backend not in allowed_pdf_backends:\n\
-          \        raise ValueError(\n            f\"Invalid pdf_backend: {pdf_backend}.\
-          \ Must be one of {sorted(allowed_pdf_backends)}\"\n        )\n\n    allowed_table_modes\
-          \ = {e.value for e in TableFormerMode}\n    if table_mode not in allowed_table_modes:\n\
-          \        raise ValueError(\n            f\"Invalid table_mode: {table_mode}.\
-          \ Must be one of {sorted(allowed_table_modes)}\"\n        )\n\n    allowed_image_export_modes\
-          \ = {e.value for e in ImageRefMode}\n    if image_export_mode not in allowed_image_export_modes:\n\
-          \        raise ValueError(\n            f\"Invalid image_export_mode: {image_export_mode}.\
+          \ with the list of file names to process\"\n        )\n\n    # Validate\
+          \ accelerator_device - map user-friendly names to AcceleratorDevice enum\n\
+          \    accelerator_device_map = {\n        \"auto\": AcceleratorDevice.AUTO,\n\
+          \        \"cpu\": AcceleratorDevice.CPU,\n        \"gpu\": AcceleratorDevice.CUDA,\
+          \  # Map 'gpu' to CUDA for user convenience\n    }\n    if accelerator_device\
+          \ not in accelerator_device_map:\n        raise ValueError(\n          \
+          \  f\"Invalid accelerator_device: {accelerator_device}. Must be one of {sorted(accelerator_device_map.keys())}\"\
+          \n        )\n\n    allowed_pdf_backends = {e.value for e in PdfBackend}\n\
+          \    if pdf_backend not in allowed_pdf_backends:\n        raise ValueError(\n\
+          \            f\"Invalid pdf_backend: {pdf_backend}. Must be one of {sorted(allowed_pdf_backends)}\"\
+          \n        )\n\n    allowed_table_modes = {e.value for e in TableFormerMode}\n\
+          \    if table_mode not in allowed_table_modes:\n        raise ValueError(\n\
+          \            f\"Invalid table_mode: {table_mode}. Must be one of {sorted(allowed_table_modes)}\"\
+          \n        )\n\n    allowed_image_export_modes = {e.value for e in ImageRefMode}\n\
+          \    if image_export_mode not in allowed_image_export_modes:\n        raise\
+          \ ValueError(\n            f\"Invalid image_export_mode: {image_export_mode}.\
           \ Must be one of {sorted(allowed_image_export_modes)}\"\n        )\n\n \
           \   if not allow_external_plugins:\n        allowed_ocr_engines = {e.value\
           \ for e in OcrEngine}\n        if ocr_engine not in allowed_ocr_engines:\n\
@@ -610,7 +629,7 @@ deploymentSpec:
           \    pipeline_options.generate_page_images = True\n    pipeline_options.table_structure_options.mode\
           \ = TableFormerMode(table_mode)\n    pipeline_options.document_timeout =\
           \ float(timeout_per_document)\n    pipeline_options.accelerator_options\
-          \ = AcceleratorOptions(\n        num_threads=num_threads, device=AcceleratorDevice.AUTO\n\
+          \ = AcceleratorOptions(\n        num_threads=num_threads, device=accelerator_device_map[accelerator_device]\n\
           \    )\n\n    backend_to_impl = {\n        PdfBackend.PYPDFIUM2.value: (\n\
           \            \"docling.backend.pypdfium2_backend\",\n            \"PyPdfiumDocumentBackend\"\
           ,\n        ),\n        PdfBackend.DLPARSE_V1.value: (\n            \"docling.backend.docling_parse_backend\"\
@@ -866,6 +885,8 @@ root:
               taskOutputParameter:
                 outputParameterKey: Output
                 producerTask: create-pdf-splits
+            pipelinechannel--docling_accelerator_device:
+              componentInputParameter: docling_accelerator_device
             pipelinechannel--docling_allow_external_plugins:
               componentInputParameter: docling_allow_external_plugins
             pipelinechannel--docling_chunk_enabled:
@@ -923,6 +944,10 @@ root:
           name: import-pdfs
   inputDefinitions:
     parameters:
+      docling_accelerator_device:
+        defaultValue: auto
+        isOptional: true
+        parameterType: STRING
       docling_allow_external_plugins:
         defaultValue: false
         isOptional: true

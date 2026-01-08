@@ -20,6 +20,7 @@ def docling_convert_vlm(
     num_threads: int = 4,
     image_export_mode: str = "embedded",
     timeout_per_document: int = 300,
+    accelerator_device: str = "auto",
     remote_model_enabled: bool = False,
     remote_model_secret_mount_path: str = "/mnt/secrets",
 ):
@@ -34,6 +35,7 @@ def docling_convert_vlm(
         num_threads: Number of threads to use per document processing.
         timeout_per_document: Timeout per document processing.
         image_export_mode: Mode to export images.
+        accelerator_device: Accelerator device to use (auto, cpu, gpu).
         remote_model_enabled: Whether or not to use a remote model.
         remote_model_secret_mount_path: Path to the remote model secret mount path.
     """
@@ -80,6 +82,17 @@ def docling_convert_vlm(
     if not pdf_filenames:
         raise ValueError(
             "pdf_filenames must be provided with the list of file names to process"
+        )
+
+    # Validate accelerator_device - map user-friendly names to AcceleratorDevice enum
+    accelerator_device_map = {
+        "auto": AcceleratorDevice.AUTO,
+        "cpu": AcceleratorDevice.CPU,
+        "gpu": AcceleratorDevice.CUDA,  # Map 'gpu' to CUDA for user convenience
+    }
+    if accelerator_device not in accelerator_device_map:
+        raise ValueError(
+            f"Invalid accelerator_device: {accelerator_device}. Must be one of {sorted(accelerator_device_map.keys())}"
         )
 
     allowed_image_export_modes = {e.value for e in ImageRefMode}
@@ -162,7 +175,7 @@ def docling_convert_vlm(
     pipeline_options.artifacts_path = artifacts_path_p
     pipeline_options.document_timeout = float(timeout_per_document)
     pipeline_options.accelerator_options = AcceleratorOptions(
-        num_threads=num_threads, device=AcceleratorDevice.AUTO
+        num_threads=num_threads, device=accelerator_device_map[accelerator_device]
     )
 
     doc_converter = DocumentConverter(

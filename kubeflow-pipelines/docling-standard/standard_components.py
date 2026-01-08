@@ -25,6 +25,7 @@ def docling_convert_standard(
     ocr: bool = True,
     force_ocr: bool = False,
     ocr_engine: str = "easyocr",
+    accelerator_device: str = "auto",
     allow_external_plugins: bool = False,
     enrich_code: bool = False,
     enrich_formula: bool = False,
@@ -47,6 +48,7 @@ def docling_convert_standard(
         ocr: Whether or not to use OCR if needed.
         force_ocr: Whether or not to force OCR.
         ocr_engine: Engine to use for OCR.
+        accelerator_device: Accelerator device to use (auto, cpu, gpu).
         allow_external_plugins: Whether or not to allow external plugins.
         enrich_code: Whether or not to enrich code.
         enrich_formula: Whether or not to enrich formula.
@@ -88,6 +90,17 @@ def docling_convert_standard(
     if not pdf_filenames:
         raise ValueError(
             "pdf_filenames must be provided with the list of file names to process"
+        )
+
+    # Validate accelerator_device - map user-friendly names to AcceleratorDevice enum
+    accelerator_device_map = {
+        "auto": AcceleratorDevice.AUTO,
+        "cpu": AcceleratorDevice.CPU,
+        "gpu": AcceleratorDevice.CUDA,  # Map 'gpu' to CUDA for user convenience
+    }
+    if accelerator_device not in accelerator_device_map:
+        raise ValueError(
+            f"Invalid accelerator_device: {accelerator_device}. Must be one of {sorted(accelerator_device_map.keys())}"
         )
 
     allowed_pdf_backends = {e.value for e in PdfBackend}
@@ -152,7 +165,7 @@ def docling_convert_standard(
     pipeline_options.table_structure_options.mode = TableFormerMode(table_mode)
     pipeline_options.document_timeout = float(timeout_per_document)
     pipeline_options.accelerator_options = AcceleratorOptions(
-        num_threads=num_threads, device=AcceleratorDevice.AUTO
+        num_threads=num_threads, device=accelerator_device_map[accelerator_device]
     )
 
     backend_to_impl = {

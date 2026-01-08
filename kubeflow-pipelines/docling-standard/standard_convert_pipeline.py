@@ -26,6 +26,7 @@ def convert_pipeline(
     # URL source params
     pdf_base_url: str = "https://github.com/docling-project/docling/raw/v2.43.0/tests/data/pdf",
     # Docling conversion params
+    docling_accelerator_device: str = "auto",
     docling_pdf_backend: str = "dlparse_v4",
     docling_image_export_mode: str = "embedded",
     docling_table_mode: str = "accurate",
@@ -86,6 +87,7 @@ def convert_pipeline(
             ocr=docling_ocr,
             force_ocr=docling_force_ocr,
             ocr_engine=docling_ocr_engine,
+            accelerator_device=docling_accelerator_device,
             allow_external_plugins=docling_allow_external_plugins,
             enrich_code=docling_enrich_code,
             enrich_formula=docling_enrich_formula,
