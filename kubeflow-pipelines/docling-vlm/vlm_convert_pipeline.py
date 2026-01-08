@@ -26,6 +26,7 @@ def convert_pipeline(
     # URL source params
     pdf_base_url: str = "https://github.com/docling-project/docling/raw/v2.43.0/tests/data/pdf",
     # Docling conversion params
+    docling_accelerator_device: str = "auto",
     docling_num_threads: int = 4,
     docling_timeout_per_document: int = 300,
     docling_image_export_mode: str = "embedded",
@@ -73,6 +74,7 @@ def convert_pipeline(
             num_threads=docling_num_threads,
             timeout_per_document=docling_timeout_per_document,
             image_export_mode=docling_image_export_mode,
+            accelerator_device=docling_accelerator_device,
             remote_model_enabled=docling_remote_model_enabled,
             remote_model_secret_mount_path=remote_model_secret_mount_path,
         )
