@@ -26,7 +26,6 @@ def convert_pipeline(
     # URL source params
     pdf_base_url: str = "https://github.com/docling-project/docling/raw/v2.43.0/tests/data/pdf",
     # Docling conversion params
-    docling_num_threads: int = 4,
     docling_timeout_per_document: int = 300,
     docling_image_export_mode: str = "embedded",
     docling_remote_model_enabled: bool = False,
@@ -70,7 +69,6 @@ def convert_pipeline(
             input_path=importer.outputs["output_path"],
             artifacts_path=artifacts.outputs["output_path"],
             pdf_filenames=pdf_split,
-            num_threads=docling_num_threads,
             timeout_per_document=docling_timeout_per_document,
             image_export_mode=docling_image_export_mode,
             remote_model_enabled=docling_remote_model_enabled,

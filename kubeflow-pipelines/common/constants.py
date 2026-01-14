@@ -5,5 +5,5 @@ PYTHON_BASE_IMAGE = os.getenv(
     "PYTHON_BASE_IMAGE", "quay.io/amaredia/aipcc-docling-image"
 )
 DOCLING_BASE_IMAGE = os.getenv(
-    "DOCLING_BASE_IMAGE", "quay.io/amaredia/aipcc-docling-image"
+    "DOCLING_BASE_IMAGE", "quay.io/fabianofranz/docling-ubi9:2.54.0"
 )

@@ -11,6 +11,7 @@ from kfp import dsl
 
 @dsl.component(
     base_image=DOCLING_BASE_IMAGE,
+    packages_to_install=["docling-jobkit==1.6.0"],
 )
 def docling_convert_standard(
     input_path: dsl.Input[dsl.Artifact],
@@ -20,7 +21,6 @@ def docling_convert_standard(
     pdf_backend: str = "dlparse_v4",
     image_export_mode: str = "embedded",
     table_mode: str = "accurate",
-    num_threads: int = 4,
     timeout_per_document: int = 300,
     ocr: bool = True,
     force_ocr: bool = False,
@@ -34,6 +34,8 @@ def docling_convert_standard(
     """
     Convert a list of PDF files to JSON and Markdown using Docling (Standard Pipeline).
 
+    Uses docling-jobkit's DoclingConverterManager for simplified converter initialization.
+
     Args:
         input_path: Path to the input directory containing PDF files.
         artifacts_path: Path to the directory containing Docling models.
@@ -42,7 +44,6 @@ def docling_convert_standard(
         pdf_backend: Backend to use for PDF processing.
         image_export_mode: Mode to export images.
         table_mode: Mode to detect tables.
-        num_threads: Number of threads to use per document processing.
         timeout_per_document: Timeout per document processing.
         ocr: Whether or not to use OCR if needed.
         force_ocr: Whether or not to force OCR.
@@ -53,76 +54,29 @@ def docling_convert_standard(
         enrich_picture_classes: Whether or not to enrich picture classes.
         enrich_picture_description: Whether or not to enrich picture description.
     """
-    from importlib import import_module  # pylint: disable=import-outside-toplevel
     from pathlib import Path  # pylint: disable=import-outside-toplevel
 
-    from docling.datamodel.accelerator_options import (  # pylint: disable=import-outside-toplevel
-        AcceleratorDevice,
-        AcceleratorOptions,
+    # docling-jobkit imports
+    from docling_jobkit.convert.manager import (  # pylint: disable=import-outside-toplevel
+        DoclingConverterManager,
+        DoclingConverterManagerConfig,
     )
-    from docling.datamodel.base_models import (
-        InputFormat,
-    )  # pylint: disable=import-outside-toplevel
+    from docling_jobkit.datamodel.convert import (  # pylint: disable=import-outside-toplevel
+        ConvertDocumentsOptions,
+        ProcessingPipeline,
+    )
     from docling.datamodel.pipeline_options import (  # pylint: disable=import-outside-toplevel
-        EasyOcrOptions,
-        OcrEngine,
-        OcrMacOptions,
         PdfBackend,
-        PdfPipelineOptions,
-        RapidOcrOptions,
         TableFormerMode,
-        TesseractCliOcrOptions,
-        TesseractOcrOptions,
     )
-    from docling.document_converter import (  # pylint: disable=import-outside-toplevel
-        DocumentConverter,
-        PdfFormatOption,
-    )
-    from docling.pipeline.standard_pdf_pipeline import (
-        StandardPdfPipeline,
-    )  # pylint: disable=import-outside-toplevel
-    from docling_core.types.doc.base import (
+    from docling_core.types.doc.base import (  # pylint: disable=import-outside-toplevel
         ImageRefMode,
-    )  # pylint: disable=import-outside-toplevel
+    )
 
     if not pdf_filenames:
         raise ValueError(
             "pdf_filenames must be provided with the list of file names to process"
         )
-
-    allowed_pdf_backends = {e.value for e in PdfBackend}
-    if pdf_backend not in allowed_pdf_backends:
-        raise ValueError(
-            f"Invalid pdf_backend: {pdf_backend}. Must be one of {sorted(allowed_pdf_backends)}"
-        )
-
-    allowed_table_modes = {e.value for e in TableFormerMode}
-    if table_mode not in allowed_table_modes:
-        raise ValueError(
-            f"Invalid table_mode: {table_mode}. Must be one of {sorted(allowed_table_modes)}"
-        )
-
-    allowed_image_export_modes = {e.value for e in ImageRefMode}
-    if image_export_mode not in allowed_image_export_modes:
-        raise ValueError(
-            f"Invalid image_export_mode: {image_export_mode}. Must be one of {sorted(allowed_image_export_modes)}"
-        )
-
-    if not allow_external_plugins:
-        allowed_ocr_engines = {e.value for e in OcrEngine}
-        if ocr_engine not in allowed_ocr_engines:
-            raise ValueError(
-                f"Invalid ocr_engine: {ocr_engine}. Must be one of {sorted(allowed_ocr_engines)}"
-            )
-
-    # Dictionary to map the engine name string to the corresponding class
-    ocr_engine_map = {
-        "easyocr": EasyOcrOptions,
-        "tesseract_cli": TesseractCliOcrOptions,
-        "tesseract": TesseractOcrOptions,
-        "ocrmac": OcrMacOptions,
-        "rapidocr": RapidOcrOptions,
-    }
 
     input_path_p = Path(input_path.path)
     artifacts_path_p = Path(artifacts_path.path)
@@ -135,60 +89,33 @@ def docling_convert_standard(
         flush=True,
     )
 
-    pipeline_options = PdfPipelineOptions()
-    pipeline_options.artifacts_path = artifacts_path_p
-    pipeline_options.do_code_enrichment = enrich_code
-    pipeline_options.do_formula_enrichment = enrich_formula
-    pipeline_options.do_picture_classification = enrich_picture_classes
-    pipeline_options.do_picture_description = enrich_picture_description
-    pipeline_options.do_ocr = ocr
-    if ocr and ocr_engine in ocr_engine_map:
-        OcrOptionsClass = ocr_engine_map[ocr_engine]
-        ocr_options_instance = OcrOptionsClass(force_full_page_ocr=force_ocr)
-        pipeline_options.ocr_options = ocr_options_instance
-    pipeline_options.do_table_structure = True
-    pipeline_options.table_structure_options.do_cell_matching = True
-    pipeline_options.generate_page_images = True
-    pipeline_options.table_structure_options.mode = TableFormerMode(table_mode)
-    pipeline_options.document_timeout = float(timeout_per_document)
-    pipeline_options.accelerator_options = AcceleratorOptions(
-        num_threads=num_threads, device=AcceleratorDevice.AUTO
+    # Create manager config with infrastructure settings
+    manager_config = DoclingConverterManagerConfig(
+        artifacts_path=artifacts_path_p,
+        allow_external_plugins=allow_external_plugins,
     )
 
-    backend_to_impl = {
-        PdfBackend.PYPDFIUM2.value: (
-            "docling.backend.pypdfium2_backend",
-            "PyPdfiumDocumentBackend",
-        ),
-        PdfBackend.DLPARSE_V1.value: (
-            "docling.backend.docling_parse_backend",
-            "DoclingParseDocumentBackend",
-        ),
-        PdfBackend.DLPARSE_V2.value: (
-            "docling.backend.docling_parse_v2_backend",
-            "DoclingParseV2DocumentBackend",
-        ),
-        PdfBackend.DLPARSE_V4.value: (
-            "docling.backend.docling_parse_v4_backend",
-            "DoclingParseV4DocumentBackend",
-        ),
-    }
-
-    module_name, class_name = backend_to_impl[pdf_backend]
-    backend_class = getattr(import_module(module_name), class_name)
-
-    doc_converter = DocumentConverter(
-        format_options={
-            InputFormat.PDF: PdfFormatOption(
-                pipeline_options=pipeline_options,
-                backend=backend_class,
-                pipeline_cls=StandardPdfPipeline,
-            )
-        }
+    # Create conversion options with all document processing settings
+    convert_options = ConvertDocumentsOptions(
+        pipeline=ProcessingPipeline.STANDARD,
+        pdf_backend=PdfBackend(pdf_backend),
+        table_mode=TableFormerMode(table_mode),
+        do_ocr=ocr,
+        force_ocr=force_ocr,
+        ocr_engine=ocr_engine,
+        document_timeout=float(timeout_per_document),
+        image_export_mode=ImageRefMode(image_export_mode),
+        do_code_enrichment=enrich_code,
+        do_formula_enrichment=enrich_formula,
+        do_picture_classification=enrich_picture_classes,
+        do_picture_description=enrich_picture_description,
     )
 
-    results = doc_converter.convert_all(input_pdfs, raises_on_error=True)
+    # Create manager and convert documents
+    manager = DoclingConverterManager(manager_config)
+    results = manager.convert_documents(sources=input_pdfs, options=convert_options)
 
+    # Save outputs
     for result in results:
         doc_filename = result.input.file.stem
 

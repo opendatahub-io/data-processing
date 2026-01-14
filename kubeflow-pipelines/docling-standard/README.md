@@ -2,6 +2,8 @@
 
 Standard (non-VLM) Docling [Kubeflow Pipeline](https://www.kubeflow.org/docs/components/pipelines/) (KFP) for [Open Data Hub](https://github.com/opendatahub-io) / [Red Hat OpenShift AI](https://www.redhat.com/en/products/ai/openshift-ai) supporting standard conversions, OCR, table structure, and enrichments.
 
+This pipeline uses [docling-jobkit](https://github.com/docling-project/docling-jobkit)'s `DoclingConverterManager` for streamlined converter initialization and configuration management.
+
 ## Installation
 
 Download the [compiled YAML file](standard_convert_pipeline_compiled.yaml?raw=1) and upload it on the _Import pipeline_ screen, or import it by URL by pointing it to `https://github.com/opendatahub-io/data-processing/raw/refs/heads/main/kubeflow-pipelines/docling-standard/standard_convert_pipeline_compiled.yaml`.
@@ -16,7 +18,6 @@ The following configuration options are available as KFP parameters when you _Cr
 - `docling_enrich_picture_description`: Enable the picture description model in the pipeline.
 - `docling_force_ocr`: Replace any existing text with OCR generated text over the full content.
 - `docling_image_export_mode`: Image export mode for the document. In `embedded` mode, the image is embedded as base64 encoded string. With `placeholder`, only the position of the image is marked in the output. In `referenced` mode, the image is exported in PNG format and referenced from the main exported document.
-- `docling_num_threads`: Number of threads to be used internally by the Docling engine.
 - `docling_ocr`: If enabled, the bitmap content will be processed using OCR.
 - `docling_ocr_engine`: The OCR engine to use. Current values are: `easyocr`.
 - `docling_pdf_backend`: The PDF backend to use. `pypdfium2`, `dlparse_v1`, `dlparse_v2`, or `dlparse_v4`.

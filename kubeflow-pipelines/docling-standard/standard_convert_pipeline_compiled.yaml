@@ -12,7 +12,6 @@
 #    docling_enrich_picture_description: bool [Default: False]
 #    docling_force_ocr: bool [Default: False]
 #    docling_image_export_mode: str [Default: 'embedded']
-#    docling_num_threads: int [Default: 4.0]
 #    docling_ocr: bool [Default: True]
 #    docling_ocr_engine: str [Default: 'easyocr']
 #    docling_pdf_backend: str [Default: 'dlparse_v4']
@@ -147,11 +146,6 @@ components:
           description: Mode to export images.
           isOptional: true
           parameterType: STRING
-        num_threads:
-          defaultValue: 4.0
-          description: Number of threads to use per document processing.
-          isOptional: true
-          parameterType: NUMBER_INTEGER
         ocr:
           defaultValue: true
           description: Whether or not to use OCR if needed.
@@ -257,8 +251,6 @@ components:
                 componentInputParameter: pipelinechannel--docling_force_ocr
               image_export_mode:
                 componentInputParameter: pipelinechannel--docling_image_export_mode
-              num_threads:
-                componentInputParameter: pipelinechannel--docling_num_threads
               ocr:
                 componentInputParameter: pipelinechannel--docling_ocr
               ocr_engine:
@@ -308,8 +300,6 @@ components:
           parameterType: BOOLEAN
         pipelinechannel--docling_image_export_mode:
           parameterType: STRING
-        pipelinechannel--docling_num_threads:
-          parameterType: NUMBER_INTEGER
         pipelinechannel--docling_ocr:
           parameterType: BOOLEAN
         pipelinechannel--docling_ocr_engine:
@@ -360,7 +350,7 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.15.2'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -396,7 +386,7 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.15.2'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -497,7 +487,7 @@ deploymentSpec:
           \            f\"docling-chunk: skipped {len(skipped_files)} invalid files:\"\
           ,\n            flush=True,\n        )\n        for filename, reason in skipped_files:\n\
           \            print(f\"  - {filename}: {reason}\", flush=True)\n\n"
-        image: quay.io/amaredia/aipcc-docling-image
+        image: quay.io/fabianofranz/docling-ubi9:2.54.0
         resources:
           cpuLimit: 2.0
           cpuRequest: 0.25
@@ -519,7 +509,8 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'docling-jobkit==1.6.0'\
+          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.15.2'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -537,96 +528,57 @@ deploymentSpec:
           \    artifacts_path: dsl.Input[dsl.Artifact],\n    output_path: dsl.Output[dsl.Artifact],\n\
           \    pdf_filenames: List[str],\n    pdf_backend: str = \"dlparse_v4\",\n\
           \    image_export_mode: str = \"embedded\",\n    table_mode: str = \"accurate\"\
-          ,\n    num_threads: int = 4,\n    timeout_per_document: int = 300,\n   \
-          \ ocr: bool = True,\n    force_ocr: bool = False,\n    ocr_engine: str =\
-          \ \"easyocr\",\n    allow_external_plugins: bool = False,\n    enrich_code:\
-          \ bool = False,\n    enrich_formula: bool = False,\n    enrich_picture_classes:\
-          \ bool = False,\n    enrich_picture_description: bool = False,\n):\n   \
-          \ \"\"\"\n    Convert a list of PDF files to JSON and Markdown using Docling\
-          \ (Standard Pipeline).\n\n    Args:\n        input_path: Path to the input\
-          \ directory containing PDF files.\n        artifacts_path: Path to the directory\
-          \ containing Docling models.\n        output_path: Path to the output directory\
-          \ for converted JSON and Markdown files.\n        pdf_filenames: List of\
-          \ PDF file names to process.\n        pdf_backend: Backend to use for PDF\
-          \ processing.\n        image_export_mode: Mode to export images.\n     \
-          \   table_mode: Mode to detect tables.\n        num_threads: Number of threads\
-          \ to use per document processing.\n        timeout_per_document: Timeout\
-          \ per document processing.\n        ocr: Whether or not to use OCR if needed.\n\
-          \        force_ocr: Whether or not to force OCR.\n        ocr_engine: Engine\
+          ,\n    timeout_per_document: int = 300,\n    ocr: bool = True,\n    force_ocr:\
+          \ bool = False,\n    ocr_engine: str = \"easyocr\",\n    allow_external_plugins:\
+          \ bool = False,\n    enrich_code: bool = False,\n    enrich_formula: bool\
+          \ = False,\n    enrich_picture_classes: bool = False,\n    enrich_picture_description:\
+          \ bool = False,\n):\n    \"\"\"\n    Convert a list of PDF files to JSON\
+          \ and Markdown using Docling (Standard Pipeline).\n\n    Uses docling-jobkit's\
+          \ DoclingConverterManager for simplified converter initialization.\n\n \
+          \   Args:\n        input_path: Path to the input directory containing PDF\
+          \ files.\n        artifacts_path: Path to the directory containing Docling\
+          \ models.\n        output_path: Path to the output directory for converted\
+          \ JSON and Markdown files.\n        pdf_filenames: List of PDF file names\
+          \ to process.\n        pdf_backend: Backend to use for PDF processing.\n\
+          \        image_export_mode: Mode to export images.\n        table_mode:\
+          \ Mode to detect tables.\n        timeout_per_document: Timeout per document\
+          \ processing.\n        ocr: Whether or not to use OCR if needed.\n     \
+          \   force_ocr: Whether or not to force OCR.\n        ocr_engine: Engine\
           \ to use for OCR.\n        allow_external_plugins: Whether or not to allow\
           \ external plugins.\n        enrich_code: Whether or not to enrich code.\n\
           \        enrich_formula: Whether or not to enrich formula.\n        enrich_picture_classes:\
           \ Whether or not to enrich picture classes.\n        enrich_picture_description:\
-          \ Whether or not to enrich picture description.\n    \"\"\"\n    from importlib\
-          \ import import_module  # pylint: disable=import-outside-toplevel\n    from\
-          \ pathlib import Path  # pylint: disable=import-outside-toplevel\n\n   \
-          \ from docling.datamodel.accelerator_options import (  # pylint: disable=import-outside-toplevel\n\
-          \        AcceleratorDevice,\n        AcceleratorOptions,\n    )\n    from\
-          \ docling.datamodel.base_models import (\n        InputFormat,\n    )  #\
-          \ pylint: disable=import-outside-toplevel\n    from docling.datamodel.pipeline_options\
-          \ import (  # pylint: disable=import-outside-toplevel\n        EasyOcrOptions,\n\
-          \        OcrEngine,\n        OcrMacOptions,\n        PdfBackend,\n     \
-          \   PdfPipelineOptions,\n        RapidOcrOptions,\n        TableFormerMode,\n\
-          \        TesseractCliOcrOptions,\n        TesseractOcrOptions,\n    )\n\
-          \    from docling.document_converter import (  # pylint: disable=import-outside-toplevel\n\
-          \        DocumentConverter,\n        PdfFormatOption,\n    )\n    from docling.pipeline.standard_pdf_pipeline\
-          \ import (\n        StandardPdfPipeline,\n    )  # pylint: disable=import-outside-toplevel\n\
-          \    from docling_core.types.doc.base import (\n        ImageRefMode,\n\
-          \    )  # pylint: disable=import-outside-toplevel\n\n    if not pdf_filenames:\n\
-          \        raise ValueError(\n            \"pdf_filenames must be provided\
-          \ with the list of file names to process\"\n        )\n\n    allowed_pdf_backends\
-          \ = {e.value for e in PdfBackend}\n    if pdf_backend not in allowed_pdf_backends:\n\
-          \        raise ValueError(\n            f\"Invalid pdf_backend: {pdf_backend}.\
-          \ Must be one of {sorted(allowed_pdf_backends)}\"\n        )\n\n    allowed_table_modes\
-          \ = {e.value for e in TableFormerMode}\n    if table_mode not in allowed_table_modes:\n\
-          \        raise ValueError(\n            f\"Invalid table_mode: {table_mode}.\
-          \ Must be one of {sorted(allowed_table_modes)}\"\n        )\n\n    allowed_image_export_modes\
-          \ = {e.value for e in ImageRefMode}\n    if image_export_mode not in allowed_image_export_modes:\n\
-          \        raise ValueError(\n            f\"Invalid image_export_mode: {image_export_mode}.\
-          \ Must be one of {sorted(allowed_image_export_modes)}\"\n        )\n\n \
-          \   if not allow_external_plugins:\n        allowed_ocr_engines = {e.value\
-          \ for e in OcrEngine}\n        if ocr_engine not in allowed_ocr_engines:\n\
-          \            raise ValueError(\n                f\"Invalid ocr_engine: {ocr_engine}.\
-          \ Must be one of {sorted(allowed_ocr_engines)}\"\n            )\n\n    #\
-          \ Dictionary to map the engine name string to the corresponding class\n\
-          \    ocr_engine_map = {\n        \"easyocr\": EasyOcrOptions,\n        \"\
-          tesseract_cli\": TesseractCliOcrOptions,\n        \"tesseract\": TesseractOcrOptions,\n\
-          \        \"ocrmac\": OcrMacOptions,\n        \"rapidocr\": RapidOcrOptions,\n\
-          \    }\n\n    input_path_p = Path(input_path.path)\n    artifacts_path_p\
+          \ Whether or not to enrich picture description.\n    \"\"\"\n    from pathlib\
+          \ import Path  # pylint: disable=import-outside-toplevel\n\n    # docling-jobkit\
+          \ imports\n    from docling_jobkit.convert.manager import (  # pylint: disable=import-outside-toplevel\n\
+          \        DoclingConverterManager,\n        DoclingConverterManagerConfig,\n\
+          \    )\n    from docling_jobkit.datamodel.convert import (  # pylint: disable=import-outside-toplevel\n\
+          \        ConvertDocumentsOptions,\n        ProcessingPipeline,\n    )\n\
+          \    from docling.datamodel.pipeline_options import (  # pylint: disable=import-outside-toplevel\n\
+          \        PdfBackend,\n        TableFormerMode,\n    )\n    from docling_core.types.doc.base\
+          \ import (  # pylint: disable=import-outside-toplevel\n        ImageRefMode,\n\
+          \    )\n\n    if not pdf_filenames:\n        raise ValueError(\n       \
+          \     \"pdf_filenames must be provided with the list of file names to process\"\
+          \n        )\n\n    input_path_p = Path(input_path.path)\n    artifacts_path_p\
           \ = Path(artifacts_path.path)\n    output_path_p = Path(output_path.path)\n\
           \    output_path_p.mkdir(parents=True, exist_ok=True)\n\n    input_pdfs\
           \ = [input_path_p / name for name in pdf_filenames]\n    print(\n      \
           \  f\"docling-standard-convert: starting with backend='{pdf_backend}', files={len(input_pdfs)}\"\
-          ,\n        flush=True,\n    )\n\n    pipeline_options = PdfPipelineOptions()\n\
-          \    pipeline_options.artifacts_path = artifacts_path_p\n    pipeline_options.do_code_enrichment\
-          \ = enrich_code\n    pipeline_options.do_formula_enrichment = enrich_formula\n\
-          \    pipeline_options.do_picture_classification = enrich_picture_classes\n\
-          \    pipeline_options.do_picture_description = enrich_picture_description\n\
-          \    pipeline_options.do_ocr = ocr\n    if ocr and ocr_engine in ocr_engine_map:\n\
-          \        OcrOptionsClass = ocr_engine_map[ocr_engine]\n        ocr_options_instance\
-          \ = OcrOptionsClass(force_full_page_ocr=force_ocr)\n        pipeline_options.ocr_options\
-          \ = ocr_options_instance\n    pipeline_options.do_table_structure = True\n\
-          \    pipeline_options.table_structure_options.do_cell_matching = True\n\
-          \    pipeline_options.generate_page_images = True\n    pipeline_options.table_structure_options.mode\
-          \ = TableFormerMode(table_mode)\n    pipeline_options.document_timeout =\
-          \ float(timeout_per_document)\n    pipeline_options.accelerator_options\
-          \ = AcceleratorOptions(\n        num_threads=num_threads, device=AcceleratorDevice.AUTO\n\
-          \    )\n\n    backend_to_impl = {\n        PdfBackend.PYPDFIUM2.value: (\n\
-          \            \"docling.backend.pypdfium2_backend\",\n            \"PyPdfiumDocumentBackend\"\
-          ,\n        ),\n        PdfBackend.DLPARSE_V1.value: (\n            \"docling.backend.docling_parse_backend\"\
-          ,\n            \"DoclingParseDocumentBackend\",\n        ),\n        PdfBackend.DLPARSE_V2.value:\
-          \ (\n            \"docling.backend.docling_parse_v2_backend\",\n       \
-          \     \"DoclingParseV2DocumentBackend\",\n        ),\n        PdfBackend.DLPARSE_V4.value:\
-          \ (\n            \"docling.backend.docling_parse_v4_backend\",\n       \
-          \     \"DoclingParseV4DocumentBackend\",\n        ),\n    }\n\n    module_name,\
-          \ class_name = backend_to_impl[pdf_backend]\n    backend_class = getattr(import_module(module_name),\
-          \ class_name)\n\n    doc_converter = DocumentConverter(\n        format_options={\n\
-          \            InputFormat.PDF: PdfFormatOption(\n                pipeline_options=pipeline_options,\n\
-          \                backend=backend_class,\n                pipeline_cls=StandardPdfPipeline,\n\
-          \            )\n        }\n    )\n\n    results = doc_converter.convert_all(input_pdfs,\
-          \ raises_on_error=True)\n\n    for result in results:\n        doc_filename\
-          \ = result.input.file.stem\n\n        output_json_path = output_path_p /\
-          \ f\"{doc_filename}.json\"\n        print(f\"docling-standard-convert: saving\
+          ,\n        flush=True,\n    )\n\n    # Create manager config with infrastructure\
+          \ settings\n    manager_config = DoclingConverterManagerConfig(\n      \
+          \  artifacts_path=artifacts_path_p,\n        allow_external_plugins=allow_external_plugins,\n\
+          \    )\n\n    # Create conversion options with all document processing settings\n\
+          \    convert_options = ConvertDocumentsOptions(\n        pipeline=ProcessingPipeline.STANDARD,\n\
+          \        pdf_backend=PdfBackend(pdf_backend),\n        table_mode=TableFormerMode(table_mode),\n\
+          \        do_ocr=ocr,\n        force_ocr=force_ocr,\n        ocr_engine=ocr_engine,\n\
+          \        document_timeout=float(timeout_per_document),\n        image_export_mode=ImageRefMode(image_export_mode),\n\
+          \        do_code_enrichment=enrich_code,\n        do_formula_enrichment=enrich_formula,\n\
+          \        do_picture_classification=enrich_picture_classes,\n        do_picture_description=enrich_picture_description,\n\
+          \    )\n\n    # Create manager and convert documents\n    manager = DoclingConverterManager(manager_config)\n\
+          \    results = manager.convert_documents(sources=input_pdfs, options=convert_options)\n\
+          \n    # Save outputs\n    for result in results:\n        doc_filename =\
+          \ result.input.file.stem\n\n        output_json_path = output_path_p / f\"\
+          {doc_filename}.json\"\n        print(f\"docling-standard-convert: saving\
           \ {output_json_path}\", flush=True)\n        result.document.save_as_json(\n\
           \            output_json_path, image_mode=ImageRefMode(image_export_mode)\n\
           \        )\n\n        output_md_path = output_path_p / f\"{doc_filename}.md\"\
@@ -634,7 +586,7 @@ deploymentSpec:
           \ flush=True)\n        result.document.save_as_markdown(\n            output_md_path,\
           \ image_mode=ImageRefMode(image_export_mode)\n        )\n\n    print(\"\
           docling-standard-convert: done\", flush=True)\n\n"
-        image: quay.io/amaredia/aipcc-docling-image
+        image: quay.io/fabianofranz/docling-ubi9:2.54.0
         resources:
           cpuLimit: 4.0
           cpuRequest: 0.5
@@ -656,7 +608,7 @@ deploymentSpec:
         - -c
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
-          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.15.2'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -711,7 +663,7 @@ deploymentSpec:
           \        )\n    else:\n        raise ValueError(\n            f\"Invalid\
           \ pipeline_type: {pipeline_type}. Must be 'standard' or 'vlm'\"\n      \
           \  )\n\n"
-        image: quay.io/amaredia/aipcc-docling-image
+        image: quay.io/fabianofranz/docling-ubi9:2.54.0
     exec-import-pdfs:
       container:
         args:
@@ -725,7 +677,7 @@ deploymentSpec:
         - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
           \ python3 -m pip install --quiet --no-warn-script-location 'boto3' 'requests'\
-          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
+          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.15.2'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
           $0\" \"$@\"\n"
         - sh
@@ -886,8 +838,6 @@ root:
               componentInputParameter: docling_force_ocr
             pipelinechannel--docling_image_export_mode:
               componentInputParameter: docling_image_export_mode
-            pipelinechannel--docling_num_threads:
-              componentInputParameter: docling_num_threads
             pipelinechannel--docling_ocr:
               componentInputParameter: docling_ocr
             pipelinechannel--docling_ocr_engine:
@@ -963,10 +913,6 @@ root:
         defaultValue: embedded
         isOptional: true
         parameterType: STRING
-      docling_num_threads:
-        defaultValue: 4.0
-        isOptional: true
-        parameterType: NUMBER_INTEGER
       docling_ocr:
         defaultValue: true
         isOptional: true
@@ -1004,7 +950,7 @@ root:
         isOptional: true
         parameterType: BOOLEAN
 schemaVersion: 2.1.0
-sdkVersion: kfp-2.14.6
+sdkVersion: kfp-2.15.2
 ---
 platforms:
   kubernetes:
