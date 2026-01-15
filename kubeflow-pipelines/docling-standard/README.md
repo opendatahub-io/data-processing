@@ -18,7 +18,7 @@ The following configuration options are available as KFP parameters when you _Cr
 - `docling_image_export_mode`: Image export mode for the document. In `embedded` mode, the image is embedded as base64 encoded string. With `placeholder`, only the position of the image is marked in the output. In `referenced` mode, the image is exported in PNG format and referenced from the main exported document.
 - `docling_num_threads`: Number of threads to be used internally by the Docling engine.
 - `docling_ocr`: If enabled, the bitmap content will be processed using OCR.
-- `docling_ocr_engine`: The OCR engine to use. Current values are: `easyocr`.
+- `docling_ocr_engine`: The OCR engine to use. Current values are: `tesseract_cli`.
 - `docling_pdf_backend`: The PDF backend to use. `pypdfium2`, `dlparse_v1`, `dlparse_v2`, or `dlparse_v4`.
 - `docling_table_mode`: The mode to use in the table structure model. `accurate` or `fast`.
 - `docling_timeout_per_document`: Timeout for each single document conversion.
