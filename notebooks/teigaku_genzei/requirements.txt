@@ -1,0 +1,13 @@
+# unitxt
+unitxt[ui]==1.24.0
+accelerate
+sacrebleu
+sacrebleu[ja]
+nltk
+rouge_score
+bert_score
+litellm
+
+# other
+python-dotenv
+

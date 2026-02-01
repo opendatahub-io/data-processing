@@ -1,0 +1,12 @@
+{
+    "__type__": "llm_judge_direct_positional_bias",
+    "inference_engine": {
+        "__type__": "rits_inference_engine",
+        "max_tokens": 1024,
+        "seed": 42,
+        "temperature": 0,
+        "model_name": "microsoft/phi-4"
+    },
+    "evaluator_name": "MICROSOFT_PHI_4",
+    "generate_summaries": false
+}

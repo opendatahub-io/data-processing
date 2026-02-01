@@ -1,0 +1,13 @@
+{
+    "__type__": "llm_judge_direct_positional_bias",
+    "inference_engine": {
+        "__type__": "rits_inference_engine_fixed",
+        "max_tokens": 1024,
+        "seed": 42,
+        "temperature": 0,
+        "model_name": "meta-llama/llama-4-maverick-17b-128e-instruct-fp8",
+        "base_url": "https://inference-3scale-apicast-production.apps.rits.fmaas.res.ibm.com/llama-4-mvk-17b-128e-fp8/v1"
+    },
+    "evaluator_name": "LLAMA3_4_MAVERICK",
+    "generate_summaries": false
+}
