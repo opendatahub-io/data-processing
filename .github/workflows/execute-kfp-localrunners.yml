@@ -105,7 +105,7 @@ jobs:
       - name: Setup Environment
         run: echo "Running on EC2 ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup System Dependencies (Python + Docker)
         run: |
           # Install Python
