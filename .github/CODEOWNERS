@@ -1,5 +1,37 @@
-# Default owners for everything
-*  @opendatahub-io/odh-data-processing
+# CODEOWNERS — automatic reviewer assignment for PRs
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Rules are evaluated bottom-up: the last matching pattern takes precedence.
+# Each PR requires approval from at least one owner of every changed file.
 
-# Keep the CODEOWNERS file itself owned by the team
-/.github/CODEOWNERS  @opendatahub-io/odh-data-processing
+# ── Default: team owns everything ──────────────────────────────────────
+*                                          @opendatahub-io/odh-data-processing
+
+# ── KFP Pipelines ─────────────────────────────────────────────────────
+# Shared components, constants, and pipeline definitions
+kubeflow-pipelines/                        @opendatahub-io/odh-data-processing-pipelines
+
+# ── Notebooks ──────────────────────────────────────────────────────────
+notebooks/                                 @opendatahub-io/odh-data-processing-notebooks
+
+# ── Subset Selection ──────────────────────────────────────────────────
+scripts/subset_selection/                  @opendatahub-io/odh-data-processing-ml
+
+# ── CI/CD & Repo Config ──────────────────────────────────────────────
+# Changes to CI, hooks, and repo config need core team review
+.github/                                   @opendatahub-io/odh-data-processing
+.pre-commit-config.yaml                    @opendatahub-io/odh-data-processing
+Makefile                                   @opendatahub-io/odh-data-processing
+pyproject.toml                             @opendatahub-io/odh-data-processing
+requirements-dev.txt                       @opendatahub-io/odh-data-processing
+
+# ── Tests ─────────────────────────────────────────────────────────────
+tests/                                     @opendatahub-io/odh-data-processing
+
+# ── Documentation ─────────────────────────────────────────────────────
+docs/                                      @opendatahub-io/odh-data-processing
+*.md                                       @opendatahub-io/odh-data-processing
+
+# ── Protected files ───────────────────────────────────────────────────
+# CODEOWNERS itself requires core team approval
+.github/CODEOWNERS                         @opendatahub-io/odh-data-processing
