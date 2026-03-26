@@ -1,0 +1,33 @@
+name: Type Check (mypy)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "**/*.py"
+      - "pyproject.toml"
+      - "requirements-dev.txt"
+      - ".github/workflows/typecheck.yml"
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install type checking dependencies
+        run: |
+          pip install mypy
+          # Install type stubs for standard library and common packages
+          pip install types-requests
+
+      - name: Run mypy
+        run: make typecheck
