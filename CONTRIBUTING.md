@@ -1,0 +1,203 @@
+# Contributing to Data Processing
+
+Thank you for your interest in contributing to the Data Processing project. This guide covers everything you need to get started.
+
+## Prerequisites
+
+- Python 3.12
+- Git
+- [pre-commit](https://pre-commit.com/) (`pip install pre-commit`)
+- Docker (only for local pipeline testing)
+- GPU with CUDA (only for subset selection and notebook execution tests)
+
+## Development Setup
+
+1. **Fork and clone** the repository:
+
+   ```bash
+   git clone https://github.com/<your-fork>/data-processing.git
+   cd data-processing
+   ```
+
+2. **Create a virtual environment**:
+
+   ```bash
+   python3.12 -m venv .venv
+   source .venv/bin/activate
+   ```
+
+3. **Install dev dependencies**:
+
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+
+   For pipeline work, also install pipeline-specific dependencies:
+
+   ```bash
+   pip install -r kubeflow-pipelines/docling-standard/requirements.txt
+   # or
+   pip install -r kubeflow-pipelines/docling-vlm/requirements.txt
+   ```
+
+   For subset selection work:
+
+   ```bash
+   pip install -r scripts/subset_selection/requirements.txt
+   ```
+
+4. **Install pre-commit hooks**:
+
+   ```bash
+   pre-commit install
+   pre-commit install --hook-type pre-push
+   ```
+
+   This enables automatic linting and formatting on commit, and type checking on push.
+
+## Building and Running Tests
+
+All test commands are available via `make`. Run `make help` to see every target.
+
+### Quick Reference
+
+```bash
+make unittest          # Run unit tests (~5s, no GPU needed)
+make test              # Run all tests (unit + integration)
+make test-all          # Run everything: lint + typecheck + all tests
+make coverage          # Unit tests with coverage report
+make lint              # Ruff lint + format check + nbstripout check
+make typecheck         # mypy type checking
+```
+
+### Test Structure
+
+Tests are organized by speed and dependency requirements:
+
+```
+tests/
+  unit/           # Fast tests, no external dependencies
+  integration/    # Slow tests, may need GPU or network
+  fixtures/       # Sample data used by tests
+```
+
+- **Unit tests** (`make unittest`): Always run these before submitting a PR. They test config validation, CLI parsing, business logic, and constants. No GPU, network, or Docker needed.
+- **Integration tests** (`make integration-test`): Run notebook execution end-to-end. These require GPU for some notebooks.
+
+### Running Specific Tests
+
+```bash
+pytest tests/unit/test_cli.py -v            # Single file
+pytest tests/unit/ -k "test_epsilon"        # By name pattern
+pytest tests/integration/test_notebook_parameters.py -v  # Notebook validation only
+```
+
+## Submitting a Pull Request
+
+1. **Open an issue first** describing what you want to change and why.
+
+2. **Create a feature branch**:
+
+   ```bash
+   git checkout -b feature/your-change
+   ```
+
+3. **Make your changes** and verify locally:
+
+   ```bash
+   make unittest          # Must pass
+   make lint              # Must pass
+   make typecheck         # Must pass
+   ```
+
+4. **For pipeline or component changes**, recompile the YAML and commit it:
+
+   ```bash
+   cd kubeflow-pipelines/docling-standard && python standard_convert_pipeline.py
+   # or
+   cd kubeflow-pipelines/docling-vlm && python vlm_convert_pipeline.py
+   ```
+
+   CI will fail if compiled YAML doesn't match the committed version.
+
+5. **For notebook changes**, ensure every notebook has a code cell tagged `parameters` for papermill execution. CI validates this automatically.
+
+6. **Push and open a PR**. CI runs automatically:
+
+   | Check | What it validates |
+   |---|---|
+   | `ci.yml` | Unit tests + notebook parameter validation |
+   | `validate-python.yml` | Ruff lint + format |
+   | `typecheck.yml` | mypy type checking |
+   | `compile-kfp.yml` | Pipeline YAML matches compiled output |
+
+7. **Get one approval** from a member of `@opendatahub-io/odh-data-processing`. PRs are squash-merged automatically via Mergify.
+
+## Code Style
+
+Style is enforced automatically by pre-commit hooks and CI. You generally don't need to think about it — just write code and commit.
+
+### Python
+
+- **Formatter**: ruff (line-length 88, target Python 3.12)
+- **Linter**: ruff (rules: E, F, I, B, W, UP — see `pyproject.toml`)
+- **Type checker**: mypy (see `pyproject.toml` for config)
+
+### Notebooks
+
+- **Output stripping**: nbstripout removes cell outputs before commit. Never commit notebooks with outputs.
+- **Parameters cell**: Every notebook must have a code cell tagged `parameters` in its metadata for papermill CI execution.
+
+### KFP Components
+
+KFP components have a unique constraint: `@dsl.component` functions are serialized into isolated containers. This means:
+
+- **Imports must be inside the function body**, not at the top of the file
+- Shared modules (`common/components.py`) only work at compile time
+- You'll see `# pylint: disable=import-outside-toplevel` — this is intentional
+
+### Generated Files
+
+Files with a `# CODE GENERATED BY ... — DO NOT EDIT` header are auto-generated. Do not edit them directly. Edit the source file listed in the header and regenerate.
+
+## Project-Specific Guidelines
+
+### Adding a New Test
+
+Place it in the correct directory:
+
+- `tests/unit/` for fast tests with no external dependencies
+- `tests/integration/` for tests that need GPU, network, or Docker
+
+The directory's `conftest.py` automatically applies the appropriate pytest marker.
+
+### Adding a New Notebook
+
+1. Create the notebook in `notebooks/tutorials/` or `notebooks/use-cases/`
+2. Add a code cell and tag it with `parameters` in the cell metadata
+3. If the notebook needs test-specific parameters, add them to `tests/integration/test_notebook_execution.py`
+4. If the notebook isn't ready for CI yet, add its filename to `SKIP_FOR_NOW` in `tests/conftest.py`
+
+### Adding a New KFP Component
+
+1. Add the component function to `kubeflow-pipelines/common/components.py` (if shared) or the pipeline-specific `*_components.py` file
+2. Use `@dsl.component` with inline imports
+3. Wire it into the pipeline definition (`*_convert_pipeline.py`)
+4. Recompile: `python *_convert_pipeline.py`
+5. Commit both the source `.py` and the compiled `_compiled.yaml`
+
+### Modifying Container Base Images
+
+Base images are configured via environment variables in `kubeflow-pipelines/common/constants.py`. To test with a different image locally:
+
+```bash
+export PYTHON_BASE_IMAGE="my-registry/python:3.12"
+export DOCLING_BASE_IMAGE="my-registry/docling:latest"
+```
+
+## Getting Help
+
+- Check `make help` for all available commands
+- See `CLAUDE.md` for detailed architecture and debugging guidance
+- See `docs/maintainers/release-strategy.md` for release process
+- Open an issue for questions or problems
