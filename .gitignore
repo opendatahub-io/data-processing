@@ -5,3 +5,6 @@
 .env
 venv
 diagrams/
+htmlcov/
+coverage.xml
+.coverage
