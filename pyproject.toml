@@ -30,3 +30,26 @@ lint.ignore = ["E203","E501","UP006","UP007","UP035"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = ["--tb=short", "-v"]
+
+[tool.coverage.run]
+source = [
+  "kubeflow-pipelines/common",
+]
+omit = [
+  "tests/*",
+  "*/__pycache__/*",
+  "*/local_run.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+fail_under = 40
+exclude_lines = [
+  "pragma: no cover",
+  "if __name__ == .__main__.",
+  "if TYPE_CHECKING:",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
