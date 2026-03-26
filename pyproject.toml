@@ -30,3 +30,7 @@ lint.ignore = ["E203","E501","UP006","UP007","UP035"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = ["--tb=short", "-v"]
+markers = [
+  "unit: Fast unit tests with no external dependencies (GPU, network, cluster)",
+  "integration: Tests requiring external resources (notebook execution, GPU, Docker)",
+]
