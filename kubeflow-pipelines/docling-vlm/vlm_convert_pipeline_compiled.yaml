@@ -291,7 +291,7 @@ deploymentSpec:
           \ for path in input_path_p.glob(\"*.pdf\")]\n    all_splits = [all_pdfs[i::num_splits]\
           \ for i in range(num_splits)]\n    filled_splits = list(filter(None, all_splits))\n\
           \    return filled_splits\n\n"
-        image: quay.io/amaredia/aipcc-docling-image
+        image: registry.access.redhat.com/ubi9/python-311:9.6-1755074620
     exec-docling-chunk:
       container:
         args:
@@ -457,63 +457,87 @@ deploymentSpec:
           \ Timeout per document processing.\n        image_export_mode: Mode to export\
           \ images.\n        remote_model_enabled: Whether or not to use a remote\
           \ model.\n        remote_model_secret_mount_path: Path to the remote model\
-          \ secret mount path.\n    \"\"\"\n    import os  # pylint: disable=import-outside-toplevel\n\
-          \    from pathlib import Path  # pylint: disable=import-outside-toplevel\n\
-          \n    # docling-jobkit imports\n    from docling_jobkit.convert.manager\
-          \ import (  # pylint: disable=import-outside-toplevel\n        DoclingConverterManager,\n\
-          \        DoclingConverterManagerConfig,\n    )\n    from docling_jobkit.datamodel.convert\
-          \ import (  # pylint: disable=import-outside-toplevel\n        ConvertDocumentsOptions,\n\
-          \        ProcessingPipeline,\n        VlmModelApi,\n    )\n    from docling.datamodel.pipeline_options_vlm_model\
-          \ import (  # pylint: disable=import-outside-toplevel\n        ResponseFormat,\n\
-          \    )\n    from docling.datamodel.vlm_model_specs import (  # pylint: disable=import-outside-toplevel\n\
-          \        VlmModelType,\n    )\n    from docling_core.types.doc.base import\
-          \ (  # pylint: disable=import-outside-toplevel\n        ImageRefMode,\n\
-          \    )\n\n    if not pdf_filenames:\n        raise ValueError(\n       \
-          \     \"pdf_filenames must be provided with the list of file names to process\"\
-          \n        )\n\n    input_path_p = Path(input_path.path)\n    artifacts_path_p\
-          \ = Path(artifacts_path.path)\n    output_path_p = Path(output_path.path)\n\
-          \    output_path_p.mkdir(parents=True, exist_ok=True)\n\n    input_pdfs\
-          \ = [input_path_p / name for name in pdf_filenames]\n    print(\n      \
-          \  f\"docling-vlm-convert: starting with backend='vlm', files={len(input_pdfs)}\"\
-          ,\n        flush=True,\n    )\n\n    # Handle remote model configuration\n\
-          \    vlm_model_api = None\n    if remote_model_enabled:\n        if not\
-          \ os.path.exists(remote_model_secret_mount_path):\n            raise ValueError(\n\
-          \                f\"Secret for remote model should be mounted in {remote_model_secret_mount_path}\"\
-          \n            )\n\n        def read_secret(secret_name: str) -> str:\n \
-          \           path = os.path.join(remote_model_secret_mount_path, secret_name)\n\
-          \            if os.path.isfile(path):\n                with open(path) as\
-          \ f:\n                    return f.read()\n            raise ValueError(\n\
-          \                f\"Key {secret_name} not defined in secret {remote_model_secret_mount_path}\"\
-          \n            )\n\n        remote_endpoint_url = read_secret(\"REMOTE_MODEL_ENDPOINT_URL\"\
-          )\n        remote_model_name = read_secret(\"REMOTE_MODEL_NAME\")\n    \
-          \    remote_api_key = read_secret(\"REMOTE_MODEL_API_KEY\")\n\n        if\
-          \ not remote_endpoint_url:\n            raise ValueError(\n            \
-          \    \"remote_model_endpoint_url must be provided when remote_model_enabled\
-          \ is True\"\n            )\n\n        # Configure VLM API model using docling-jobkit's\
-          \ VlmModelApi\n        vlm_model_api = VlmModelApi(\n            url=remote_endpoint_url,\n\
-          \            headers={\"Authorization\": f\"Bearer {remote_api_key}\"},\n\
-          \            params={\"model_id\": remote_model_name, \"max_new_tokens\"\
-          : 400},\n            prompt=\"OCR the full page to markdown.\",\n      \
-          \      timeout=600,\n            response_format=ResponseFormat.MARKDOWN,\n\
-          \        )\n\n    # Create manager config\n    manager_config = DoclingConverterManagerConfig(\n\
-          \        artifacts_path=artifacts_path_p,\n        enable_remote_services=remote_model_enabled,\n\
-          \    )\n\n    # Create conversion options\n    # For local inference, use\
-          \ SMOLDOCLING model; for remote, use the API model\n    convert_options\
-          \ = ConvertDocumentsOptions(\n        pipeline=ProcessingPipeline.VLM,\n\
-          \        document_timeout=float(timeout_per_document),\n        image_export_mode=ImageRefMode(image_export_mode),\n\
-          \        vlm_pipeline_model=None if remote_model_enabled else VlmModelType.SMOLDOCLING,\n\
-          \        vlm_pipeline_model_api=vlm_model_api,\n    )\n\n    # Create manager\
-          \ and convert documents\n    manager = DoclingConverterManager(manager_config)\n\
-          \    results = manager.convert_documents(sources=input_pdfs, options=convert_options)\n\
-          \n    # Save outputs\n    for result in results:\n        doc_filename =\
-          \ result.input.file.stem\n\n        output_json_path = output_path_p / f\"\
-          {doc_filename}.json\"\n        print(f\"docling-vlm-convert: saving {output_json_path}\"\
-          , flush=True)\n        result.document.save_as_json(\n            output_json_path,\
-          \ image_mode=ImageRefMode(image_export_mode)\n        )\n\n        output_md_path\
-          \ = output_path_p / f\"{doc_filename}.md\"\n        print(f\"docling-vlm-convert:\
-          \ saving {output_md_path}\", flush=True)\n        result.document.save_as_markdown(\n\
-          \            output_md_path, image_mode=ImageRefMode(image_export_mode)\n\
-          \        )\n\n    print(\"docling-vlm-convert: done\", flush=True)\n\n"
+          \ secret mount path.\n    \"\"\"\n    import os\n    from pathlib import\
+          \ Path\n\n    from docling.datamodel.accelerator_options import (  # pylint:\
+          \ disable=import-outside-toplevel  # noqa: PLC0415, E402\n        AcceleratorDevice,\n\
+          \        AcceleratorOptions,\n    )\n    from docling.datamodel.base_models\
+          \ import (\n        InputFormat,\n    )  # pylint: disable=import-outside-toplevel\
+          \  # noqa: PLC0415, E402\n    from docling.datamodel.pipeline_options import\
+          \ (  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402\n\
+          \        VlmPipelineOptions,\n        smoldocling_vlm_conversion_options,\n\
+          \    )\n    from docling.datamodel.pipeline_options_vlm_model import ( \
+          \ # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402\n   \
+          \     ApiVlmOptions,\n        ResponseFormat,\n    )\n    from docling.document_converter\
+          \ import (  # pylint: disable=import-outside-toplevel  # noqa: PLC0415,\
+          \ E402\n        DocumentConverter,\n        PdfFormatOption,\n    )\n  \
+          \  from docling.pipeline.vlm_pipeline import (\n        VlmPipeline,\n \
+          \   )  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402\n\
+          \    from docling_core.types.doc.base import (\n        ImageRefMode,\n\
+          \    )  # pylint: disable=import-outside-toplevel  # noqa: PLC0415, E402\n\
+          \n    input_path_p = Path(input_path.path)\n    artifacts_path_p = Path(artifacts_path.path)\n\
+          \    output_path_p = Path(output_path.path)\n    output_path_p.mkdir(parents=True,\
+          \ exist_ok=True)\n\n    input_pdfs = [input_path_p / name for name in pdf_filenames]\n\
+          \n    print(\n        f\"docling-vlm-convert: starting with backend='vlm',\
+          \ files={len(input_pdfs)}\",\n        flush=True,\n    )\n    if not pdf_filenames:\n\
+          \        raise ValueError(\n            \"pdf_filenames must be provided\
+          \ with the list of file names to process\"\n        )\n\n    allowed_image_export_modes\
+          \ = {e.value for e in ImageRefMode}\n    if image_export_mode not in allowed_image_export_modes:\n\
+          \        raise ValueError(\n            f\"Invalid image_export_mode: {image_export_mode}.\
+          \ Must be one of {sorted(allowed_image_export_modes)}\"\n        )\n\n \
+          \   if remote_model_enabled:\n        if not os.path.exists(remote_model_secret_mount_path):\n\
+          \            raise ValueError(\n                f\"Secret for remote model\
+          \ should be mounted in {remote_model_secret_mount_path}\"\n            )\n\
+          \n        remote_model_endpoint_url_secret = \"REMOTE_MODEL_ENDPOINT_URL\"\
+          \n        remote_model_endpoint_url_file_path = os.path.join(\n        \
+          \    remote_model_secret_mount_path, remote_model_endpoint_url_secret\n\
+          \        )\n        if os.path.isfile(remote_model_endpoint_url_file_path):\n\
+          \            with open(remote_model_endpoint_url_file_path) as f:\n    \
+          \            remote_model_endpoint_url = f.read()\n        else:\n     \
+          \       raise ValueError(\n                f\"Key {remote_model_endpoint_url_secret}\
+          \ not defined in secret {remote_model_secret_mount_path}\"\n           \
+          \ )\n\n        remote_model_name_secret = \"REMOTE_MODEL_NAME\"\n      \
+          \  remote_model_name_file_path = os.path.join(\n            remote_model_secret_mount_path,\
+          \ remote_model_name_secret\n        )\n        if os.path.isfile(remote_model_name_file_path):\n\
+          \            with open(remote_model_name_file_path) as f:\n            \
+          \    remote_model_name = f.read()\n        else:\n            raise ValueError(\n\
+          \                f\"Key {remote_model_name_secret} not defined in secret\
+          \ {remote_model_secret_mount_path}\"\n            )\n\n        remote_model_api_key_secret\
+          \ = \"REMOTE_MODEL_API_KEY\"\n        remote_model_api_key_file_path = os.path.join(\n\
+          \            remote_model_secret_mount_path, remote_model_api_key_secret\n\
+          \        )\n        if os.path.isfile(remote_model_api_key_file_path):\n\
+          \            with open(remote_model_api_key_file_path) as f:\n         \
+          \       remote_model_api_key = f.read()\n        else:\n            raise\
+          \ ValueError(\n                f\"Key {remote_model_api_key_secret} not\
+          \ defined in secret {remote_model_secret_mount_path}\"\n            )\n\n\
+          \        if not remote_model_endpoint_url:\n            raise ValueError(\n\
+          \                \"remote_model_endpoint_url must be provided when remote_model_enabled\
+          \ is True\"\n            )\n\n        pipeline_options = VlmPipelineOptions(\n\
+          \            enable_remote_services=True,\n        )\n        pipeline_options.vlm_options\
+          \ = ApiVlmOptions(\n            url=remote_model_endpoint_url,  # type:\
+          \ ignore[arg-type]\n            params=dict(\n                model_id=remote_model_name,\n\
+          \                parameters=dict(\n                    max_new_tokens=400,\n\
+          \                ),\n            ),\n            prompt=\"OCR the full page\
+          \ to markdown.\",\n            timeout=600,\n            response_format=ResponseFormat.MARKDOWN,\n\
+          \            headers={\n                \"Authorization\": f\"Bearer {remote_model_api_key}\"\
+          ,\n            },\n        )\n    else:\n        pipeline_options = VlmPipelineOptions(\n\
+          \            vlm_options=smoldocling_vlm_conversion_options\n        )\n\
+          \n    pipeline_cls = VlmPipeline\n    pipeline_options.artifacts_path =\
+          \ artifacts_path_p\n    pipeline_options.document_timeout = float(timeout_per_document)\n\
+          \    pipeline_options.accelerator_options = AcceleratorOptions(\n      \
+          \  num_threads=num_threads, device=AcceleratorDevice.AUTO\n    )\n\n   \
+          \ doc_converter = DocumentConverter(\n        format_options={\n       \
+          \     InputFormat.PDF: PdfFormatOption(\n                pipeline_cls=pipeline_cls,\n\
+          \                pipeline_options=pipeline_options,\n            )\n   \
+          \     }\n    )\n\n    results = doc_converter.convert_all(input_pdfs, raises_on_error=True)\n\
+          \n    for result in results:\n        doc_filename = result.input.file.stem\n\
+          \n        output_json_path = output_path_p / f\"{doc_filename}.json\"\n\
+          \        print(f\"docling-vlm-convert: saving {output_json_path}\", flush=True)\n\
+          \        result.document.save_as_json(\n            output_json_path, image_mode=ImageRefMode(image_export_mode)\n\
+          \        )\n\n        output_md_path = output_path_p / f\"{doc_filename}.md\"\
+          \n        print(f\"docling-vlm-convert: saving {output_md_path}\", flush=True)\n\
+          \        result.document.save_as_markdown(\n            output_md_path,\
+          \ image_mode=ImageRefMode(image_export_mode)\n        )\n\n    print(\"\
+          docling-vlm-convert: done\", flush=True)\n\n"
         image: quay.io/fabianofranz/docling-ubi9:2.54.0
         resources:
           cpuLimit: 4.0
@@ -555,8 +579,8 @@ deploymentSpec:
           \ bool = False,\n):\n    \"\"\"\n    Download Docling models based on pipeline\
           \ type and configuration.\n\n    This unified component handles model downloading\
           \ for different pipeline types:\n    - standard : Download traditional Docling\
-          \ models (layout, tableformer, easyocr)\n    - vlm : Download Docling VLM\
-          \ models (smolvlm, smoldocling) for local inference\n             When remote_model_endpoint_enabled=True,\
+          \ models (layout, tableformer)\n    - vlm : Download Docling VLM models\
+          \ (smolvlm, smoldocling) for local inference\n             When remote_model_endpoint_enabled=True,\
           \ downloads minimal models for remote inference\n\n    Args:\n        output_path:\
           \ Path to the output directory for Docling models\n        pipeline_type:\
           \ Type of pipeline (standard, vlm)\n        remote_model_endpoint_enabled:\
@@ -568,9 +592,9 @@ deploymentSpec:
           \n    if pipeline_type == \"standard\":\n        # Standard pipeline: download\
           \ traditional models\n        download_models(\n            output_dir=output_path_p,\n\
           \            progress=True,\n            with_layout=True,\n           \
-          \ with_tableformer=True,\n            with_easyocr=True,\n        )\n  \
-          \  elif pipeline_type == \"vlm\" and remote_model_endpoint_enabled:\n  \
-          \      # VLM pipeline with remote model endpoint: Download minimal required\
+          \ with_tableformer=True,\n            with_easyocr=False,\n        )\n \
+          \   elif pipeline_type == \"vlm\" and remote_model_endpoint_enabled:\n \
+          \       # VLM pipeline with remote model endpoint: Download minimal required\
           \ models\n        # Only models set are what lives in fabianofranz repo\n\
           \        # TODO: figure out what needs to be downloaded or removed\n   \
           \     download_models(\n            output_dir=output_path_p,\n        \
@@ -685,7 +709,7 @@ deploymentSpec:
           \ in resp.iter_content(chunk_size=8192):\n                        if chunk:\n\
           \                            f.write(chunk)\n\n    print(\"import-test-pdfs:\
           \ done\", flush=True)\n\n"
-        image: quay.io/amaredia/aipcc-docling-image
+        image: registry.access.redhat.com/ubi9/python-311:9.6-1755074620
 pipelineInfo:
   description: Docling VLM convert pipeline by the Data Processing Team
   name: data-processing-docling-vlm-pipeline

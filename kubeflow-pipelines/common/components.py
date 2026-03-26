@@ -175,7 +175,7 @@ def download_docling_models(
     Download Docling models based on pipeline type and configuration.
 
     This unified component handles model downloading for different pipeline types:
-    - standard : Download traditional Docling models (layout, tableformer, easyocr)
+    - standard : Download traditional Docling models (layout, tableformer)
     - vlm : Download Docling VLM models (smolvlm, smoldocling) for local inference
              When remote_model_endpoint_enabled=True, downloads minimal models for remote inference
 
@@ -200,7 +200,7 @@ def download_docling_models(
             progress=True,
             with_layout=True,
             with_tableformer=True,
-            with_easyocr=True,
+            with_easyocr=False,
         )
     elif pipeline_type == "vlm" and remote_model_endpoint_enabled:
         # VLM pipeline with remote model endpoint: Download minimal required models

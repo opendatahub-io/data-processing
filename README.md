@@ -6,14 +6,10 @@
 
 This repository provides reference **data-processing pipelines and examples** for [Open Data Hub](https://github.com/opendatahub-io) / [Red Hat OpenShift AI](https://www.redhat.com/en/products/ai/openshift-ai). It focuses on **document conversion** and **chunking** using the [Docling](https://docling-project.github.io/docling/) toolkit, packaged as [Kubeflow Pipelines](https://www.kubeflow.org/docs/components/pipelines/) (KFP), example [Jupyter Notebooks](https://jupyter.org/), and helper scripts.
 
-The workbenches directory also provides a guide on how to create a custom [workbench image](https://github.com/opendatahub-io-contrib/workbench-images) to run Docling and the example notebooks in this repository.
-
 ## 📦 Repository Structure
 
 ```bash
 data-processing
-|
-|- custom-workbench-image
 |
 |- kubeflow-pipelines
 |   |- docling-standard
@@ -36,12 +32,6 @@ Refer to the [Data Processing Kubeflow Pipelines](kubeflow-pipelines) documentat
 ### Notebooks
 
 Data processing related [jupyter notebooks](notebooks) are broken down into [use-cases](notebooks/use-cases) and [tutorials](notebooks/tutorials). 
-
-### Custom Workbench Image
-
-Open Data Hub has the ability for users to add and run [custom workbench images](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/2.24/html/managing_openshift_ai/creating-custom-workbench-images).
-
-A sample `Containerfile` and instructions to create a custom workbench image are in [custom-workbench-image](custom-workbench-image).
 
 ### Scripts
 
