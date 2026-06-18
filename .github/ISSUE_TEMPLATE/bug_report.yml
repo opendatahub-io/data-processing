@@ -1,0 +1,120 @@
+name: Bug Report
+description: Report a bug in data-processing pipelines
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill out the sections below so we can reproduce and fix the issue.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the project is affected?
+      options:
+        - "KFP Pipeline - docling-standard"
+        - "KFP Pipeline - docling-vlm"
+        - "KFP Pipeline - common components"
+        - "CI / GitHub Actions"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Exact steps to trigger the bug. Include commands, parameter values, and input data details.
+      placeholder: |
+        1. Run `python standard_convert_pipeline.py`
+        2. Upload compiled YAML to KFP dashboard
+        3. Set `num_splits=5`, `pdf_from_s3=true`
+        4. Execute pipeline
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What should have happened?
+      placeholder: Pipeline completes successfully and produces Docling JSON output files.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened? Be specific about where in the process the failure occurred.
+      placeholder: |
+        The `docling_convert_standard` component fails during PDF conversion with a timeout error
+        after processing 2 of 5 splits.
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-logs
+    attributes:
+      label: Error Logs / Stack Trace
+      description: Paste the full error output. For KFP pipelines, include the component logs from the KFP dashboard.
+      render: shell
+      placeholder: |
+        Traceback (most recent call last):
+          File "standard_components.py", line 42, in docling_convert_standard
+            ...
+        TimeoutError: Document conversion exceeded 300s limit
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Provide environment details relevant to your setup.
+      value: |
+        - **Python version**:
+        - **Platform**: (e.g., OpenShift AI 2.x, standalone KFP, local Docker)
+        - **Docling base image**: (e.g., `quay.io/fabianofranz/docling-ubi9:2.54.0` or custom)
+        - **Python base image**: (e.g., `registry.access.redhat.com/ubi9/python-311:9.6-*` or custom)
+        - **KFP SDK version**: (e.g., `kfp==2.14.6`)
+        - **OS**: (e.g., RHEL 9, Ubuntu 22.04)
+        - **GPU**: (if applicable — model, driver version)
+    validations:
+      required: true
+
+  - type: textarea
+    id: input-data
+    attributes:
+      label: Input Data
+      description: Describe the input files that triggered the bug. Include file types, sizes, and source if possible. Do not attach confidential data.
+      placeholder: |
+        - 3 PDF files, ~50 pages each, scanned documents with tables
+        - Source: S3 bucket via `pdf_from_s3=true`
+    validations:
+      required: false
+
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Pipeline Parameters
+      description: List any non-default parameter values you used.
+      render: yaml
+      placeholder: |
+        num_splits: 5
+        docling_table_mode: accurate
+        docling_ocr: true
+        docling_force_ocr: true
+        docling_timeout_per_document: 300
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other information — screenshots, related issues, workarounds you tried.
+    validations:
+      required: false
