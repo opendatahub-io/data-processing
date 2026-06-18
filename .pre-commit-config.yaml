@@ -1,23 +1,41 @@
 repos:
-  # Lint first (with safe autofixes)
-  # Fast formatter (optional alongside Black)
+  # Ruff: lint then format (order matters — lint autofixes before formatting)
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.13.0
     hooks:
+      - id: ruff
+        name: ruff-lint
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python]
       - id: ruff-format
         name: ruff-format
         types_or: [python]
-  # Strip notebook outputs anywhere in repo
+
+  # Strip notebook outputs before commit
   - repo: https://github.com/kynan/nbstripout
     rev: 0.8.1
     hooks:
       - id: nbstripout
         types: [jupyter]
 
+  # YAML validation and general hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+        args: [--unsafe]  # allow custom YAML tags used by GitHub Actions
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+
 exclude: |
   (?x)(
     ^\.git/|
     ^\.venv/|^venv/|
     ^\.pytest_cache/|^\.mypy_cache/|
-    ^\.ipynb_checkpoints/
+    ^\.ipynb_checkpoints/|
+    _compiled\.yaml$
   )
