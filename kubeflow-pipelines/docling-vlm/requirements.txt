@@ -1,4 +1,5 @@
-docling == 2.57.0
+docling == 2.54.0
+docling-jobkit == 1.6.0
 kfp == 2.14.6
 kfp-kubernetes == 2.14.6
 boto3 == 1.40.52

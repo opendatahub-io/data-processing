@@ -17,12 +17,13 @@ Two KFP pipelines are included:
 - Two customizable pipelines to suit different needs:
   - Standard PDF pipeline (backends, OCR engines, table structure, image export)
   - VLM pipeline (Docling VLM or Granite-Vision pipeline options; remote VLM service supported)
+- **Powered by [docling-jobkit](https://github.com/docling-project/docling-jobkit)** for simplified converter management and configuration
 - **Optional document chunking** using Docling's HybridChunker 
 - Multiple input sources: HTTP/S URLs or S3/S3-compatible APIs like MinIO
 - Secret-based configuration:
   - Remote VLM API configuration via a single mounted Kubernetes Secret
   - S3 endpoint and credentials via a single mounted Kubernetes Secret
-- Tunable performance and quality: threads, timeouts, OCR forcing, table mode, PDF backends, enrichments
+- Tunable performance and quality: timeouts, OCR forcing, table mode, PDF backends, enrichments
 - Works on OpenShift AI/Kubeflow Pipelines
 
 ### Pipeline Architecture
@@ -112,8 +113,8 @@ By default, both pipelines will consume documents stored in an HTTP/S source. To
 
 #### 1) Defaults (Docling with default parameters)
 
-- Standard pipeline defaults include `pdf_backend=dlparse_v4`, `image_export_mode=embedded`, `table_mode=accurate`, `num_threads=4`, `timeout_per_document=300`, `ocr=True`, `force_ocr=False`, `ocr_engine=tesseract`.
-- VLM pipeline defaults include `num_threads=4`, `timeout_per_document=300`, `image_export_mode=embedded`, and `remote_model_enabled=False`.
+- Standard pipeline defaults include `pdf_backend=dlparse_v4`, `image_export_mode=embedded`, `table_mode=accurate`, `timeout_per_document=300`, `ocr=True`, `force_ocr=False`, `ocr_engine=tesseract`.
+- VLM pipeline defaults include `timeout_per_document=300`, `image_export_mode=embedded`, and `remote_model_enabled=False`.
 
 #### 2) Minor tweaks: image and table modes
 
@@ -197,7 +198,7 @@ When chunking is enabled, an additional output file is created for each converte
 ## 🔧 Advanced customizations
 
 - Increase `num_splits` to **parallelize** across more workers (uses KFP `ParallelFor`).
-- Tune `num_threads` and `timeout_per_document`.
+- Tune `timeout_per_document` for longer or shorter document processing timeouts.
 - Adjust **container resources** per component, e.g. `set_memory_limit("6G")`, `set_cpu_limit("4")`, in [`docling-standard/standard_convert_pipeline.py`](docling-standard/standard_convert_pipeline.py) or [`docling-vlm/vlm_convert_pipeline.py`](docling-vlm/vlm_convert_pipeline.py).
 - Change the value of the `base_image` component parameter ([example](https://github.com/opendatahub-io/data-processing/blob/2bc017c30f862a11fc12c0551c31e8cc93ea6e51/kubeflow-pipelines/docling-standard/standard_components.py#L12)) if you'd like to set a **custom container image** to be used in the pipeline run.
 - Recompile the pipeline YAML after code or parameter interface changes to refresh the compiled YAML.
