@@ -1,0 +1,32 @@
+name: Type Check (mypy)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "kubeflow-pipelines/**/*.py"
+      - "pyproject.toml"
+      - "requirements-dev.txt"
+      - ".github/workflows/typecheck.yml"
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install type checking dependencies
+        run: |
+          pip install mypy
+          pip install types-requests
+
+      - name: Run mypy on kubeflow-pipelines
+        run: mypy kubeflow-pipelines/

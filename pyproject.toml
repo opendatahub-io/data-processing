@@ -30,3 +30,44 @@ lint.ignore = ["E203","E501","UP006","UP007","UP035"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = ["--tb=short", "-v"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+check_untyped_defs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = true
+no_implicit_optional = true
+strict_equality = true
+show_error_codes = true
+show_column_numbers = true
+
+# Exclude generated and non-source files
+exclude = [
+  "venv/",
+  "\\.venv/",
+  "\\.ipynb_checkpoints/",
+  "local_outputs/",
+]
+
+# KFP components: imports happen inside function bodies and reference
+# packages only available in the container base image (docling, etc.).
+[[tool.mypy.overrides]]
+module = [
+  "kubeflow-pipelines.common.components",
+  "kubeflow-pipelines.docling-standard.standard_components",
+  "kubeflow-pipelines.docling-vlm.vlm_components",
+]
+disable_error_code = ["import-not-found"]
+
+# Third-party libraries without type stubs
+[[tool.mypy.overrides]]
+module = [
+  "kfp.*",
+  "docling.*",
+  "docling_core.*",
+]
+ignore_missing_imports = true
