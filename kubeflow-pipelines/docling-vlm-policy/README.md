@@ -61,7 +61,7 @@ Per document, the pipeline produces:
 | File | Description |
 |------|-------------|
 | `{name}_policy.md` | Assembled Markdown with artifact interpretations inline |
-| `{name}_artifacts.json` | Metadata: artifact type, interpretation, source image per artifact |
+| `metadata/{name}_artifacts.json` | Metadata: artifact type, interpretation, source image per artifact |
 | `{name}.json` | Original DoclingDocument JSON (for HybridChunker / downstream consumers) |
 
 ## Prerequisites
@@ -82,7 +82,7 @@ kubectl create secret generic hf-token --from-literal=token="hf_YOUR_TOKEN"
 kubectl apply -f kserve/vlm-inferenceservice.yaml
 ```
 
-The default manifest deploys `ibm-granite/granite-vision-3.2-2b` using `registry.redhat.io/rhaiis/vllm-cuda-rhel9`. Adjust the `--model` argument for a different model (e.g., `ibm-granite/granite-vision-3.2-8b` for higher quality).
+The default manifest deploys `ibm-granite/granite-vision-3.2-2b` using `registry.redhat.io/rhaiis/vllm-cuda-rhel9:0.8.5`. Adjust the `--model` argument for a different model (e.g., `ibm-granite/granite-vision-3.2-8b` for higher quality), and update the image tag to the latest available version from the [Red Hat container catalog](https://catalog.redhat.com/).
 
 Wait for the InferenceService to be ready:
 

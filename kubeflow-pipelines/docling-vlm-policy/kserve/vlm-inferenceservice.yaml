@@ -10,7 +10,7 @@ spec:
     maxReplicas: 1
     containers:
       - name: kserve-container
-        image: registry.redhat.io/rhaiis/vllm-cuda-rhel9:latest
+        image: registry.redhat.io/rhaiis/vllm-cuda-rhel9:0.8.5
         command:
           - python
           - -m

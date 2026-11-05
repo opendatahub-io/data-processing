@@ -121,20 +121,25 @@ def interpret_policy_artifacts(
 
     VALID_TYPES = set(INTERPRETATION_PROMPTS.keys())
 
-    # --- Read VLM credentials from mounted secret ---
+    # --- Read VLM credentials from mounted secret or environment variables ---
     def read_secret(name):
         fpath = os.path.join(vlm_secret_mount_path, name)
-        if not os.path.isfile(fpath):
-            raise ValueError(
-                f"Key {name} not found in secret mount {vlm_secret_mount_path}"
-            )
-        with open(fpath) as f:
-            return f.read().strip()
+        if os.path.isfile(fpath):
+            with open(fpath) as f:
+                return f.read().strip()
+        env_val = os.environ.get(name)
+        if env_val is not None:
+            return env_val
+        raise ValueError(
+            f"Key {name} not found in secret mount {vlm_secret_mount_path} "
+            f"or environment variable {name}"
+        )
 
     if not os.path.exists(vlm_secret_mount_path):
-        raise ValueError(
-            f"Secret mount path {vlm_secret_mount_path} does not exist. "
-            "Create a Kubernetes Secret with VLM endpoint configuration."
+        print(
+            f"Secret mount path {vlm_secret_mount_path} not found, "
+            "falling back to environment variables",
+            flush=True,
         )
 
     vlm_endpoint_url = read_secret("REMOTE_MODEL_ENDPOINT_URL")
@@ -305,8 +310,11 @@ def interpret_policy_artifacts(
         policy_md_path.write_text(assembled_md, encoding="utf-8")
         print(f"  {doc_name}: saved {policy_md_path.name}", flush=True)
 
-        # Save artifact metadata
-        artifacts_json_path = output_path_p / f"{doc_name}_artifacts.json"
+        # Save artifact metadata in a subdirectory to avoid conflicts with
+        # the chunker, which globs *.json and validates as DoclingDocument
+        metadata_dir = output_path_p / "metadata"
+        metadata_dir.mkdir(parents=True, exist_ok=True)
+        artifacts_json_path = metadata_dir / f"{doc_name}_artifacts.json"
         with open(artifacts_json_path, "w", encoding="utf-8") as f:
             json.dump(
                 {
