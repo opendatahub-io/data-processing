@@ -7,7 +7,8 @@ ALL_NOTEBOOKS := $(USE_CASES) $(TUTORIALS)
 COMMON := $(wildcard kubeflow-pipelines/common/*.py)
 DOCLING_STANDARD_PIPELINE := $(wildcard kubeflow-pipelines/docling-standard/*.py)
 DOCLING_VLM_PIPELINE := $(wildcard kubeflow-pipelines/docling-vlm/*.py)
-ALL_PYTHON_FILES := $(COMMON) $(DOCLING_STANDARD_PIPELINE) $(DOCLING_VLM_PIPELINE)
+DOCLING_VLM_POLICY_PIPELINE := $(wildcard kubeflow-pipelines/docling-vlm-policy/*.py)
+ALL_PYTHON_FILES := $(COMMON) $(DOCLING_STANDARD_PIPELINE) $(DOCLING_VLM_PIPELINE) $(DOCLING_VLM_POLICY_PIPELINE)
 
 format-python:
 	@echo "Running ruff format..."

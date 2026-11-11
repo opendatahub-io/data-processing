@@ -1,0 +1,56 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: policy-vlm
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
+spec:
+  predictor:
+    minReplicas: 1
+    maxReplicas: 1
+    containers:
+      - name: kserve-container
+        image: registry.redhat.io/rhaiis/vllm-cuda-rhel9:0.8.5
+        command:
+          - python
+          - -m
+          - vllm.entrypoints.openai.api_server
+        args:
+          - --model
+          - ibm-granite/granite-vision-3.2-2b
+          - --port
+          - "8080"
+          - --max-model-len
+          - "4096"
+          - --trust-remote-code
+        env:
+          - name: HF_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: hf-token
+                key: token
+                optional: true
+        ports:
+          - containerPort: 8080
+            protocol: TCP
+        resources:
+          requests:
+            nvidia.com/gpu: "1"
+            memory: "24Gi"
+            cpu: "4"
+          limits:
+            nvidia.com/gpu: "1"
+            memory: "48Gi"
+            cpu: "8"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 30

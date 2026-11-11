@@ -13,10 +13,7 @@ pull_request_rules:
     actions:
       merge:
         method: squash
-        commit_message_template: |
-          {{ title }} (#{{ number }})
-          
-          {{ body.split('Description')[0].strip() if body else '' }}
+        commit_message_format: title+body
       comment:
         message: |
           🎉 **Auto-merged successfully!**
