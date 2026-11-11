@@ -244,11 +244,26 @@ def interpret_policy_artifacts(
             json_src = input_path_p / f"{doc_name}.json"
             if json_src.exists():
                 shutil.copy2(json_src, output_path_p / f"{doc_name}.json")
+            metadata_dir = output_path_p / "metadata"
+            metadata_dir.mkdir(parents=True, exist_ok=True)
+            with open(metadata_dir / f"{doc_name}_artifacts.json", "w") as f:
+                json.dump(
+                    {
+                        "document": doc_name,
+                        "total_images": 0,
+                        "total_artifacts": 0,
+                        "skipped": [],
+                        "artifacts": [],
+                    },
+                    f,
+                    indent=2,
+                )
             continue
 
         print(f"  {doc_name}: found {len(matches)} image(s) to interpret", flush=True)
 
         artifacts_metadata = []
+        skipped_metadata = []
         assembled_md = md_content
 
         for idx, match in enumerate(matches):
@@ -258,6 +273,9 @@ def interpret_policy_artifacts(
             img_path = resolve_image_path(img_ref, doc_name)
             if img_path is None:
                 print(f"  {doc_name}: image {img_ref} not found, skipping", flush=True)
+                skipped_metadata.append(
+                    {"index": idx, "source_image": str(img_ref), "reason": "not found"}
+                )
                 continue
 
             with open(img_path, "rb") as f:
@@ -319,7 +337,9 @@ def interpret_policy_artifacts(
             json.dump(
                 {
                     "document": doc_name,
+                    "total_images": len(matches),
                     "total_artifacts": len(artifacts_metadata),
+                    "skipped": skipped_metadata,
                     "artifacts": artifacts_metadata,
                 },
                 f,

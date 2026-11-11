@@ -993,19 +993,29 @@ deploymentSpec:
           , flush=True)\n            shutil.copy2(md_file, output_path_p / f\"{doc_name}_policy.md\"\
           )\n            json_src = input_path_p / f\"{doc_name}.json\"\n        \
           \    if json_src.exists():\n                shutil.copy2(json_src, output_path_p\
-          \ / f\"{doc_name}.json\")\n            continue\n\n        print(f\"  {doc_name}:\
+          \ / f\"{doc_name}.json\")\n            metadata_dir = output_path_p / \"\
+          metadata\"\n            metadata_dir.mkdir(parents=True, exist_ok=True)\n\
+          \            with open(metadata_dir / f\"{doc_name}_artifacts.json\", \"\
+          w\") as f:\n                json.dump(\n                    {\n        \
+          \                \"document\": doc_name,\n                        \"total_images\"\
+          : 0,\n                        \"total_artifacts\": 0,\n                \
+          \        \"skipped\": [],\n                        \"artifacts\": [],\n\
+          \                    },\n                    f,\n                    indent=2,\n\
+          \                )\n            continue\n\n        print(f\"  {doc_name}:\
           \ found {len(matches)} image(s) to interpret\", flush=True)\n\n        artifacts_metadata\
-          \ = []\n        assembled_md = md_content\n\n        for idx, match in enumerate(matches):\n\
-          \            img_ref = match.group(2)\n            full_match_text = match.group(0)\n\
-          \n            img_path = resolve_image_path(img_ref, doc_name)\n       \
-          \     if img_path is None:\n                print(f\"  {doc_name}: image\
-          \ {img_ref} not found, skipping\", flush=True)\n                continue\n\
-          \n            with open(img_path, \"rb\") as f:\n                img_b64\
-          \ = base64.b64encode(f.read()).decode(\"utf-8\")\n\n            # Step 1:\
-          \ Classify artifact type\n            print(\n                f\"  {doc_name}:\
-          \ classifying image {idx + 1}/{len(matches)}...\",\n                flush=True,\n\
-          \            )\n            raw_type = call_vlm(img_b64, CLASSIFICATION_PROMPT,\
-          \ max_tokens=20)\n            artifact_type = raw_type.strip().lower().replace(\"\
+          \ = []\n        skipped_metadata = []\n        assembled_md = md_content\n\
+          \n        for idx, match in enumerate(matches):\n            img_ref = match.group(2)\n\
+          \            full_match_text = match.group(0)\n\n            img_path =\
+          \ resolve_image_path(img_ref, doc_name)\n            if img_path is None:\n\
+          \                print(f\"  {doc_name}: image {img_ref} not found, skipping\"\
+          , flush=True)\n                skipped_metadata.append(\n              \
+          \      {\"index\": idx, \"source_image\": str(img_ref), \"reason\": \"not\
+          \ found\"}\n                )\n                continue\n\n            with\
+          \ open(img_path, \"rb\") as f:\n                img_b64 = base64.b64encode(f.read()).decode(\"\
+          utf-8\")\n\n            # Step 1: Classify artifact type\n            print(\n\
+          \                f\"  {doc_name}: classifying image {idx + 1}/{len(matches)}...\"\
+          ,\n                flush=True,\n            )\n            raw_type = call_vlm(img_b64,\
+          \ CLASSIFICATION_PROMPT, max_tokens=20)\n            artifact_type = raw_type.strip().lower().replace(\"\
           \ \", \"_\")\n            if artifact_type not in VALID_TYPES:\n       \
           \         artifact_type = \"other\"\n            print(\n              \
           \  f\"  {doc_name}: image {idx + 1} classified as '{artifact_type}'\",\n\
@@ -1033,15 +1043,16 @@ deploymentSpec:
           \ exist_ok=True)\n        artifacts_json_path = metadata_dir / f\"{doc_name}_artifacts.json\"\
           \n        with open(artifacts_json_path, \"w\", encoding=\"utf-8\") as f:\n\
           \            json.dump(\n                {\n                    \"document\"\
-          : doc_name,\n                    \"total_artifacts\": len(artifacts_metadata),\n\
-          \                    \"artifacts\": artifacts_metadata,\n              \
-          \  },\n                f,\n                indent=2,\n                ensure_ascii=False,\n\
-          \            )\n        print(f\"  {doc_name}: saved {artifacts_json_path.name}\"\
-          , flush=True)\n\n        # Copy DoclingDocument JSON for downstream consumers\
-          \ and chunking\n        json_src = input_path_p / f\"{doc_name}.json\"\n\
-          \        if json_src.exists():\n            shutil.copy2(json_src, output_path_p\
-          \ / f\"{doc_name}.json\")\n\n    print(\"interpret-policy-artifacts: done\"\
-          , flush=True)\n\n"
+          : doc_name,\n                    \"total_images\": len(matches),\n     \
+          \               \"total_artifacts\": len(artifacts_metadata),\n        \
+          \            \"skipped\": skipped_metadata,\n                    \"artifacts\"\
+          : artifacts_metadata,\n                },\n                f,\n        \
+          \        indent=2,\n                ensure_ascii=False,\n            )\n\
+          \        print(f\"  {doc_name}: saved {artifacts_json_path.name}\", flush=True)\n\
+          \n        # Copy DoclingDocument JSON for downstream consumers and chunking\n\
+          \        json_src = input_path_p / f\"{doc_name}.json\"\n        if json_src.exists():\n\
+          \            shutil.copy2(json_src, output_path_p / f\"{doc_name}.json\"\
+          )\n\n    print(\"interpret-policy-artifacts: done\", flush=True)\n\n"
         image: quay.io/fabianofranz/docling-ubi9:2.54.0
         resources:
           cpuLimit: 2.0

@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 from typing import List
@@ -15,6 +16,12 @@ from common import (
 from kfp import dsl, local
 from policy_components import interpret_policy_artifacts
 from standard_components import docling_convert_standard
+
+VLM_ENV_KEYS = (
+    "REMOTE_MODEL_ENDPOINT_URL",
+    "REMOTE_MODEL_NAME",
+    "REMOTE_MODEL_API_KEY",
+)
 
 
 @dsl.component(base_image="python:3.11")
@@ -63,7 +70,14 @@ def policy_convert_pipeline_local():
 
 
 def main() -> None:
-    local.init(runner=local.DockerRunner())
+    vlm_env = {k: os.environ[k] for k in VLM_ENV_KEYS if k in os.environ}
+    if not vlm_env:
+        print(
+            "Set REMOTE_MODEL_ENDPOINT_URL, REMOTE_MODEL_NAME, and "
+            "REMOTE_MODEL_API_KEY environment variables to configure the VLM "
+            "endpoint for local runs."
+        )
+    local.init(runner=local.DockerRunner(environment=vlm_env))
     policy_convert_pipeline_local()
 
 

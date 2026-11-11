@@ -175,7 +175,7 @@ The `asago-policy-mapper` currently calls `doc.export_to_markdown(image_mode=Ima
 To evaluate interpretation quality:
 
 1. **Manual review**: Compare `_policy.md` output against original PDF for a sample of documents
-2. **Artifact coverage**: Check `_artifacts.json` — `total_artifacts` should match the number of non-text elements in the source
+2. **Artifact coverage**: Check `_artifacts.json` — `total_images` is the number of images found in the document; `total_artifacts` is how many were successfully interpreted; `skipped` lists any images that could not be resolved
 3. **Classification accuracy**: Review artifact type assignments in `_artifacts.json`
 4. **Structural preservation**: Verify headings, numbered clauses, cross-references, and tables are intact in the assembled Markdown
 
@@ -183,11 +183,17 @@ To evaluate interpretation quality:
 
 ```bash
 pip install docker kfp
+
+# Set VLM endpoint environment variables (forwarded into the Docker container)
+export REMOTE_MODEL_ENDPOINT_URL="http://localhost:8080"
+export REMOTE_MODEL_NAME="ibm-granite/granite-vision-3.2-2b"
+export REMOTE_MODEL_API_KEY=""
+
 cd data-processing/kubeflow-pipelines/docling-vlm-policy
 python local_run.py
 ```
 
-Requires a Docker-compatible daemon and a VLM secret configured locally.
+Requires a Docker-compatible daemon and a reachable VLM endpoint. The `REMOTE_MODEL_*` environment variables are forwarded into the Docker container via `DockerRunner(environment=...)`.
 
 ## Compiling from Source
 
