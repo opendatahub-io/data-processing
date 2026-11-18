@@ -17,8 +17,6 @@ on:
     paths:
       - "notebooks/**/*.ipynb"
       - ".github/workflows/execute-all-notebooks.yml"
-env:
-  INSTANCE_TYPE: "g6e.xlarge"
 
 # We don't need anything other than Bash for our shell..
 defaults:
@@ -26,51 +24,10 @@ defaults:
     shell: bash
 
 jobs:
-  launch-ec2-runner:
+  execute-all-notebooks:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write # This is required for OIDC (AWS auth)
       contents: read
-    outputs:
-      label: ${{ steps.start-ec2-runner.outputs.label }}
-      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
-        with:
-          role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.DATA_PROCESSING_IAM_ROLE }}"
-          aws-region: us-east-2
-          role-session-name: odh-data-processing  # For tracking in CloudTrail
-
-      - name: Start Data Processing EC2 runner
-        id: start-ec2-runner
-        uses: machulav/ec2-github-runner@343a1b2ae682e681c3cec9a235d882da17ff04ef # v2.6.1
-        with:
-          mode: start
-          github-token: "${{ secrets.DATA_PROCESSING_GH_PERSONAL_ACCESS_TOKEN }}"
-          ec2-instance-type: "${{ env.INSTANCE_TYPE }}"
-          availability-zones-config: >
-            [
-              {"imageId": "${{ vars.US_EAST_2_AMI_ID }}", "subnetId": "${{ vars.US_EAST_2A_SUBNET_ID }}", "securityGroupId": "${{ vars.US_EAST_2_SG_ID }}"},
-              {"imageId": "${{ vars.US_EAST_2_AMI_ID }}", "subnetId": "${{ vars.US_EAST_2B_SUBNET_ID }}", "securityGroupId": "${{ vars.US_EAST_2_SG_ID }}"},
-              {"imageId": "${{ vars.US_EAST_2_AMI_ID }}", "subnetId": "${{ vars.US_EAST_2C_SUBNET_ID }}", "securityGroupId": "${{ vars.US_EAST_2_SG_ID }}"}
-            ]
-          iam-role-name: "${{ vars.DATA_PROCESSING_IAM_ROLE }}"
-          aws-resource-tags: >
-            [
-              {"Key": "Name", "Value": "data-processing-gh-runner"},
-              {"Key": "GitHubRepository", "Value": "${{ github.repository }}"},
-              {"Key": "GitHubRef", "Value": "${{ github.ref }}"},
-              {"Key": "GitHubPR", "Value": "${{ github.event.number }}"}
-            ]
-  execute-all-notebooks:
-    needs:
-      - launch-ec2-runner
-    runs-on: ${{ needs.launch-ec2-runner.outputs.label }}
     env:
       MILVUS_LITE_WORK_DIR: "/tmp/milvus_lite_work"
       HOME: "/tmp/milvus_lite_work"
@@ -78,93 +35,33 @@ jobs:
       PYTHONPATH: ${{ github.workspace }}
 
     steps:
-      - name: Setup Environment
-        run: echo "Running on EC2 ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
+      # Create the redirected HOME/work directory first so that later steps
+      # (and the notebooks themselves) can safely write into it.
+      - name: Prepare Milvus Lite work directory
+        run: mkdir -p "${{ env.MILVUS_LITE_WORK_DIR }}"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - name: Setup System Dependencies (Python + CUDA Runtime)
-        run: |
-          # 1. Install Python and basic tools
-          sudo dnf install -y gcc gcc-c++ make git-core python3.11 python3.11-devel python3-pip libaio
-          
-          # 2. Install base runtime libraries (required by libcusparselt)
-          sudo dnf install -y cuda-libraries-12-4
-          
-          # 3. Install the specific library Docling needs
-          sudo dnf install -y libcusparselt0-cuda-12.x86_64
-          sudo dnf install -y nvshmem || echo "NVSHMEM not in repo, relying on pip"
-          
-          # 4. THE SAFETY CHECK: Hide System NCCL
-          # We remove the system libnccl so that when we put system paths first in LD_LIBRARY_PATH,
-          # PyTorch won't accidentally find this incompatible version.
-          sudo find /usr/lib64 /usr/local/cuda-*/lib64 -name "libnccl.so*" -exec rm -f {} \;
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
 
       - name: Install Python Dependencies
         run: |
           # Setup Pip
-          /usr/bin/python3.11 -m ensurepip --upgrade >/dev/null 2>&1 
-          /usr/bin/python3.11 -m pip install --upgrade pip setuptools wheel
-          
-          # 1. Install Requirements (Generic)
-          # We do this first so we can overwrite any bad CPU-versions it pulls in
-          /usr/bin/python3.11 -m pip install -r requirements-dev.txt
-          /usr/bin/python3.11 -m pip install -r scripts/subset_selection/requirements.txt
-          
-          # 2. Force Reinstall GPU-Specific Versions (From PyTorch Index)
-          # We run this separately so --index-url doesn't break other packages
-          /usr/bin/python3.11 -m pip install --force-reinstall -r tests/requirements-gpu.txt
-            
-          # 3. Register Kernel
-          /usr/bin/python3.11 -m ipykernel install --name "python3.11" --user
+          python -m pip install --upgrade pip setuptools wheel
+
+          # Install test requirements (CPU-only: the notebooks install their
+          # own dependencies, such as docling/torch, from PyPI at runtime)
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -r scripts/subset_selection/requirements.txt
+
+          # Register Kernel
+          python -m ipykernel install --name "python3.11" --user
 
       - name: Execute Notebooks
         run: |
           export PYTHONPATH="$(pwd):$PYTHONPATH"
-          # 1. Find the pip installation folder
-          SITE_PACKAGES=$(/usr/bin/python3.11 -m pip show nvidia-nccl-cu12 | grep Location | awk '{print $2}')
-          if [ -z "$SITE_PACKAGES" ]; then
-           echo "ERROR: nvidia-nccl-cu12 not found. Cannot construct LD_LIBRARY_PATH."
-           exit 1
-          fi
-          
-          # 2. Define the specific folders for the GPU libraries
-          NCCL_LIB="$SITE_PACKAGES/nvidia/nccl/lib"
-          NVSHMEM_LIB="$SITE_PACKAGES/nvidia/nvshmem/lib"
-          CUSPARSE_LIB="$SITE_PACKAGES/nvidia/cusparse/lib"
-          
-          # 3. Set up the Environment for Milvus (Crash prevention)
-          mkdir -p "${{ env.MILVUS_LITE_WORK_DIR }}"
-
-          # 4. The "Sandwich" Library Path
-          # - /usr/lib64: FIRST. Milvus gets system libstdc++.
-          # - Nvidia Libs: SECOND. PyTorch gets its bundled GPU libs.
-          # - System CUDA: THIRD. Docling gets libcusparselt.
-          export LD_LIBRARY_PATH="/usr/lib64:$NCCL_LIB:$NVSHMEM_LIB:$CUSPARSE_LIB:/usr/local/cuda/lib64:$LD_LIBRARY_PATH" 
           cd tests
-          /usr/bin/python3.11 -m pytest test_notebook_execution.py -v --tb=short
-  stop-ec2-runner:
-    permissions:
-      id-token: write # This is required for OIDC (AWS auth)
-      contents: read
-    needs:
-      - launch-ec2-runner
-      - execute-all-notebooks
-    runs-on: ubuntu-latest
-    if: ${{ always() }}
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
-        with:
-          role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.DATA_PROCESSING_IAM_ROLE }}"
-          aws-region: us-east-2
-          role-session-name: odh-data-processing  # For tracking in CloudTrail
-
-      - name: Stop EC2 runner
-        uses: machulav/ec2-github-runner@343a1b2ae682e681c3cec9a235d882da17ff04ef # v2.6.1
-        with:
-          mode: stop
-          github-token: "${{ secrets.DATA_PROCESSING_GH_PERSONAL_ACCESS_TOKEN }}"
-          label: ${{ needs.launch-ec2-runner.outputs.label }}
-          ec2-instance-id: ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}
-
+          python -m pytest test_notebook_execution.py -v --tb=short
