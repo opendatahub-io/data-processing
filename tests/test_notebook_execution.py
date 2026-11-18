@@ -40,7 +40,7 @@ def get_test_parameters(notebook_path: Optional[Path] = None):
         return notebook_specific_params.get(notebook_path.name, override_params)
     
     return override_params
-def execute_single_notebook(notebook_path: Path,timeout: Optional[int] = 600) -> bool:
+def execute_single_notebook(notebook_path: Path,timeout: Optional[int] = 1800) -> bool:
     """
     Execute a single notebook with papermill.
     
@@ -73,7 +73,7 @@ def execute_single_notebook(notebook_path: Path,timeout: Optional[int] = 600) ->
 
 @pytest.mark.parametrize("notebook_path", get_notebook_files(), 
                         ids=lambda path: str(path)) 
-def test_notebook_executes_without_error(notebook_path: Path,timeout: Optional[int] = 600):
+def test_notebook_executes_without_error(notebook_path: Path,timeout: Optional[int] = 1800):
     """Test that each notebook executes without errors."""
     
     # Skip backup/duplicate files

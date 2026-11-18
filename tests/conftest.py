@@ -7,8 +7,11 @@ from pathlib import Path
 
 import pytest
 
-# Notebooks to temporarily skip 
-SKIP_FOR_NOW = []
+# Notebooks excluded from test discovery (never collected or executed by CI
+# or local `make test-notebooks`).
+# document-conversion-vlm.ipynb runs the SmolDocling VLM locally, which is too
+# slow without a GPU — execute it by hand on a GPU machine instead.
+SKIP_FOR_NOW = ["document-conversion-vlm.ipynb"]
 
 def get_notebook_files():
     """Discover all notebook files in the notebooks directory."""
