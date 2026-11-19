@@ -1,0 +1,4 @@
+docling == 2.57.0
+kfp == 2.14.6
+kfp-kubernetes == 2.14.6
+boto3 == 1.40.52

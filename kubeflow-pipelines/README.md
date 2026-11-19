@@ -6,10 +6,11 @@
 
 In this section of the Data Processing repository, we provide reference **data-processing pipelines** for [Open Data Hub](https://github.com/opendatahub-io) / [Red Hat OpenShift AI](https://www.redhat.com/en/products/ai/openshift-ai), packaged as [Kubeflow Pipelines](https://www.kubeflow.org/docs/components/pipelines/) (KFP).
 
-Two KFP pipelines are included:
+Three KFP pipelines are included:
 
 - **[docling-standard](docling-standard)**: Standard Docling pipeline for standard conversions, OCR, table structure, enrichments.
 - **[docling-vlm](docling-vlm)**: Vision-Language-Model (VLM) pipeline supporting local or remote models.
+- **[docling-vlm-policy](docling-vlm-policy)**: Policy document pipeline that combines standard Docling parsing with VLM-based artifact classification and type-specific interpretation (risk matrices, decision trees, charts, forms, screenshots, diagrams).
 
 ## 🚀 Key Features
 
@@ -54,11 +55,20 @@ kubeflow-pipelines
 |   |- requirements.txt
 |
 |- docling-vlm/
-    |- vlm_components.py
-    |- vlm_convert_pipeline.py
-    |- vlm_convert_pipeline_compiled.yaml (generated)
+|   |- vlm_components.py
+|   |- vlm_convert_pipeline.py
+|   |- vlm_convert_pipeline_compiled.yaml (generated)
+|   |- local_run.py           # Local testing script
+|   |- requirements.txt
+|
+|- docling-vlm-policy/
+    |- policy_components.py
+    |- policy_convert_pipeline.py
+    |- policy_convert_pipeline_compiled.yaml (generated)
     |- local_run.py           # Local testing script
     |- requirements.txt
+    |- kserve/
+        |- vlm-inferenceservice.yaml
 ```
 
 ## ✨ Getting Started

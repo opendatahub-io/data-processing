@@ -1,0 +1,1244 @@
+# PIPELINE DEFINITION
+# Name: data-processing-docling-vlm-policy-pipeline
+# Description: Policy document conversion pipeline with artifact-type-specific VLM interpretation by the Data Processing Team
+# Inputs:
+#    docling_chunk_enabled: bool [Default: False]
+#    docling_chunk_max_tokens: int [Default: 512.0]
+#    docling_chunk_merge_peers: bool [Default: True]
+#    docling_num_threads: int [Default: 4.0]
+#    docling_ocr: bool [Default: True]
+#    docling_table_mode: str [Default: 'accurate']
+#    docling_timeout_per_document: int [Default: 300.0]
+#    num_splits: int [Default: 3.0]
+#    pdf_base_url: str [Default: 'https://github.com/docling-project/docling/raw/v2.43.0/tests/data/pdf']
+#    pdf_filenames: str [Default: '2203.01017v2.pdf']
+#    pdf_from_s3: bool [Default: False]
+#    vlm_max_tokens: int [Default: 1024.0]
+#    vlm_timeout: int [Default: 120.0]
+components:
+  comp-condition-2:
+    dag:
+      tasks:
+        docling-chunk:
+          cachingOptions: {}
+          componentRef:
+            name: comp-docling-chunk
+          inputs:
+            artifacts:
+              input_path:
+                componentInputArtifact: pipelinechannel--interpret-policy-artifacts-output_path
+            parameters:
+              max_tokens:
+                componentInputParameter: pipelinechannel--docling_chunk_max_tokens
+              merge_peers:
+                componentInputParameter: pipelinechannel--docling_chunk_merge_peers
+          taskInfo:
+            name: docling-chunk
+    inputDefinitions:
+      artifacts:
+        pipelinechannel--interpret-policy-artifacts-output_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+      parameters:
+        pipelinechannel--docling_chunk_enabled:
+          parameterType: BOOLEAN
+        pipelinechannel--docling_chunk_max_tokens:
+          parameterType: NUMBER_INTEGER
+        pipelinechannel--docling_chunk_merge_peers:
+          parameterType: BOOLEAN
+  comp-create-pdf-splits:
+    executorLabel: exec-create-pdf-splits
+    inputDefinitions:
+      artifacts:
+        input_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+          description: Path to the input directory containing PDF files.
+      parameters:
+        num_splits:
+          description: Number of splits to create.
+          parameterType: NUMBER_INTEGER
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: LIST
+  comp-docling-chunk:
+    executorLabel: exec-docling-chunk
+    inputDefinitions:
+      artifacts:
+        input_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+          description: Path to the input directory containing Docling JSON files
+      parameters:
+        max_tokens:
+          defaultValue: 512.0
+          description: Maximum number of tokens per chunk
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        merge_peers:
+          defaultValue: true
+          description: Whether to merge smaller chunks at the same level
+          isOptional: true
+          parameterType: BOOLEAN
+    outputDefinitions:
+      artifacts:
+        output_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-docling-convert-standard:
+    executorLabel: exec-docling-convert-standard
+    inputDefinitions:
+      artifacts:
+        artifacts_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+          description: Path to the directory containing Docling models.
+        input_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+          description: Path to the input directory containing PDF files.
+      parameters:
+        allow_external_plugins:
+          defaultValue: false
+          description: Whether or not to allow external plugins.
+          isOptional: true
+          parameterType: BOOLEAN
+        enrich_code:
+          defaultValue: false
+          description: Whether or not to enrich code.
+          isOptional: true
+          parameterType: BOOLEAN
+        enrich_formula:
+          defaultValue: false
+          description: Whether or not to enrich formula.
+          isOptional: true
+          parameterType: BOOLEAN
+        enrich_picture_classes:
+          defaultValue: false
+          description: Whether or not to enrich picture classes.
+          isOptional: true
+          parameterType: BOOLEAN
+        enrich_picture_description:
+          defaultValue: false
+          description: Whether or not to enrich picture description.
+          isOptional: true
+          parameterType: BOOLEAN
+        force_ocr:
+          defaultValue: false
+          description: Whether or not to force OCR.
+          isOptional: true
+          parameterType: BOOLEAN
+        image_export_mode:
+          defaultValue: embedded
+          description: Mode to export images.
+          isOptional: true
+          parameterType: STRING
+        num_threads:
+          defaultValue: 4.0
+          description: Number of threads to use per document processing.
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        ocr:
+          defaultValue: true
+          description: Whether or not to use OCR if needed.
+          isOptional: true
+          parameterType: BOOLEAN
+        ocr_engine:
+          defaultValue: tesseract_cli
+          description: Engine to use for OCR.
+          isOptional: true
+          parameterType: STRING
+        pdf_backend:
+          defaultValue: dlparse_v4
+          description: Backend to use for PDF processing.
+          isOptional: true
+          parameterType: STRING
+        pdf_filenames:
+          description: List of PDF file names to process.
+          parameterType: LIST
+        table_mode:
+          defaultValue: accurate
+          description: Mode to detect tables.
+          isOptional: true
+          parameterType: STRING
+        timeout_per_document:
+          defaultValue: 300.0
+          description: Timeout per document processing.
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+    outputDefinitions:
+      artifacts:
+        output_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-download-docling-models:
+    executorLabel: exec-download-docling-models
+    inputDefinitions:
+      parameters:
+        pipeline_type:
+          defaultValue: standard
+          description: Type of pipeline (standard, vlm)
+          isOptional: true
+          parameterType: STRING
+        remote_model_endpoint_enabled:
+          defaultValue: false
+          description: Whether to download remote model endpoint models (VLM only)
+          isOptional: true
+          parameterType: BOOLEAN
+    outputDefinitions:
+      artifacts:
+        output_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-for-loop-1:
+    dag:
+      tasks:
+        condition-2:
+          componentRef:
+            name: comp-condition-2
+          dependentTasks:
+          - interpret-policy-artifacts
+          inputs:
+            artifacts:
+              pipelinechannel--interpret-policy-artifacts-output_path:
+                taskOutputArtifact:
+                  outputArtifactKey: output_path
+                  producerTask: interpret-policy-artifacts
+            parameters:
+              pipelinechannel--docling_chunk_enabled:
+                componentInputParameter: pipelinechannel--docling_chunk_enabled
+              pipelinechannel--docling_chunk_max_tokens:
+                componentInputParameter: pipelinechannel--docling_chunk_max_tokens
+              pipelinechannel--docling_chunk_merge_peers:
+                componentInputParameter: pipelinechannel--docling_chunk_merge_peers
+          taskInfo:
+            name: condition-2
+          triggerPolicy:
+            condition: inputs.parameter_values['pipelinechannel--docling_chunk_enabled']
+              == true
+        docling-convert-standard:
+          cachingOptions: {}
+          componentRef:
+            name: comp-docling-convert-standard
+          inputs:
+            artifacts:
+              artifacts_path:
+                componentInputArtifact: pipelinechannel--download-docling-models-output_path
+              input_path:
+                componentInputArtifact: pipelinechannel--import-pdfs-output_path
+            parameters:
+              image_export_mode:
+                runtimeValue:
+                  constant: referenced
+              num_threads:
+                componentInputParameter: pipelinechannel--docling_num_threads
+              ocr:
+                componentInputParameter: pipelinechannel--docling_ocr
+              pdf_filenames:
+                componentInputParameter: pipelinechannel--create-pdf-splits-Output-loop-item
+              table_mode:
+                componentInputParameter: pipelinechannel--docling_table_mode
+              timeout_per_document:
+                componentInputParameter: pipelinechannel--docling_timeout_per_document
+          taskInfo:
+            name: docling-convert-standard
+        interpret-policy-artifacts:
+          cachingOptions: {}
+          componentRef:
+            name: comp-interpret-policy-artifacts
+          dependentTasks:
+          - docling-convert-standard
+          inputs:
+            artifacts:
+              input_path:
+                taskOutputArtifact:
+                  outputArtifactKey: output_path
+                  producerTask: docling-convert-standard
+            parameters:
+              vlm_max_tokens:
+                componentInputParameter: pipelinechannel--vlm_max_tokens
+              vlm_secret_mount_path:
+                runtimeValue:
+                  constant: /mnt/secrets
+              vlm_timeout:
+                componentInputParameter: pipelinechannel--vlm_timeout
+          taskInfo:
+            name: interpret-policy-artifacts
+    inputDefinitions:
+      artifacts:
+        pipelinechannel--download-docling-models-output_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        pipelinechannel--import-pdfs-output_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+      parameters:
+        pipelinechannel--create-pdf-splits-Output:
+          parameterType: LIST
+        pipelinechannel--create-pdf-splits-Output-loop-item:
+          parameterType: LIST
+        pipelinechannel--docling_chunk_enabled:
+          parameterType: BOOLEAN
+        pipelinechannel--docling_chunk_max_tokens:
+          parameterType: NUMBER_INTEGER
+        pipelinechannel--docling_chunk_merge_peers:
+          parameterType: BOOLEAN
+        pipelinechannel--docling_num_threads:
+          parameterType: NUMBER_INTEGER
+        pipelinechannel--docling_ocr:
+          parameterType: BOOLEAN
+        pipelinechannel--docling_table_mode:
+          parameterType: STRING
+        pipelinechannel--docling_timeout_per_document:
+          parameterType: NUMBER_INTEGER
+        pipelinechannel--vlm_max_tokens:
+          parameterType: NUMBER_INTEGER
+        pipelinechannel--vlm_timeout:
+          parameterType: NUMBER_INTEGER
+  comp-import-pdfs:
+    executorLabel: exec-import-pdfs
+    inputDefinitions:
+      parameters:
+        base_url:
+          description: Base URL of the PDF files.
+          parameterType: STRING
+        filenames:
+          description: List of PDF filenames to import.
+          parameterType: STRING
+        from_s3:
+          defaultValue: false
+          description: Whether or not to import from S3.
+          isOptional: true
+          parameterType: BOOLEAN
+        s3_secret_mount_path:
+          defaultValue: /mnt/secrets
+          description: Path to the secret mount path for the S3 credentials.
+          isOptional: true
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        output_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-interpret-policy-artifacts:
+    executorLabel: exec-interpret-policy-artifacts
+    inputDefinitions:
+      artifacts:
+        input_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+          description: Path to directory containing Docling conversion output.
+      parameters:
+        vlm_max_tokens:
+          defaultValue: 1024.0
+          description: Maximum tokens for each VLM interpretation response.
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+        vlm_secret_mount_path:
+          defaultValue: /mnt/secrets
+          description: 'Path to mounted Kubernetes secret containing
+
+            REMOTE_MODEL_ENDPOINT_URL, REMOTE_MODEL_NAME, REMOTE_MODEL_API_KEY.'
+          isOptional: true
+          parameterType: STRING
+        vlm_timeout:
+          defaultValue: 120.0
+          description: Timeout in seconds per VLM API call.
+          isOptional: true
+          parameterType: NUMBER_INTEGER
+    outputDefinitions:
+      artifacts:
+        output_path:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-create-pdf-splits:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - create_pdf_splits
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef create_pdf_splits(\n    input_path: dsl.Input[dsl.Artifact],\n\
+          \    num_splits: int,\n) -> List[List[str]]:\n    \"\"\"\n    Create a list\
+          \ of PDF splits.\n\n    Args:\n        input_path: Path to the input directory\
+          \ containing PDF files.\n        num_splits: Number of splits to create.\n\
+          \    \"\"\"\n    from pathlib import Path  # pylint: disable=import-outside-toplevel\n\
+          \n    input_path_p = Path(input_path.path)\n\n    all_pdfs = [path.name\
+          \ for path in input_path_p.glob(\"*.pdf\")]\n    all_splits = [all_pdfs[i::num_splits]\
+          \ for i in range(num_splits)]\n    filled_splits = list(filter(None, all_splits))\n\
+          \    return filled_splits\n\n"
+        image: registry.access.redhat.com/ubi9/python-311:9.6-1755074620
+    exec-docling-chunk:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - docling_chunk
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef docling_chunk(\n    input_path: dsl.Input[dsl.Artifact],\n  \
+          \  output_path: dsl.Output[dsl.Artifact],\n    max_tokens: int = 512,\n\
+          \    merge_peers: bool = True,\n):\n    \"\"\"\n    Chunk Docling documents\
+          \ using HybridChunker. Takes converted docling JSON files as input\n   \
+          \ and produces chunked JSONL files with semantic chunks suitable for RAG.\n\
+          \n    Output format is JSONL (one JSON object per line) for easy inspection\
+          \ and streaming.\n\n    Args:\n        input_path: Path to the input directory\
+          \ containing Docling JSON files\n        output_path: Path to the output\
+          \ directory for the chunked JSONL files\n        max_tokens: Maximum number\
+          \ of tokens per chunk\n        merge_peers: Whether to merge smaller chunks\
+          \ at the same level\n    \"\"\"\n    import json  # pylint: disable=import-outside-toplevel\n\
+          \    from datetime import datetime, timezone  # pylint: disable=import-outside-toplevel\n\
+          \    from pathlib import Path  # pylint: disable=import-outside-toplevel\n\
+          \n    # HybridChunker = Docling's smart chunking class that combines:\n\
+          \    # 1. Document structure awareness\n    # 2. Token-based splitting\n\
+          \    from docling.chunking import HybridChunker  # pylint: disable=import-outside-toplevel\n\
+          \    from docling_core.transforms.chunker.tokenizer.huggingface import (\n\
+          \        HuggingFaceTokenizer,\n    )  # pylint: disable=import-outside-toplevel\n\
+          \    from docling_core.types import DoclingDocument  # pylint: disable=import-outside-toplevel\n\
+          \    from transformers import AutoTokenizer  # pylint: disable=import-outside-toplevel\n\
+          \n    # Convert KFP artifact paths to Path objects\n    input_path_p = Path(input_path.path)\n\
+          \    output_path_p = Path(output_path.path)\n    output_path_p.mkdir(parents=True,\
+          \ exist_ok=True)\n\n    # Initialize tokenizer for HybridChunker (new API)\n\
+          \    # Using a lightweight sentence-transformer model for tokenization\n\
+          \    EMBED_MODEL_ID = \"sentence-transformers/all-MiniLM-L6-v2\"\n    try:\n\
+          \        hf_tokenizer = AutoTokenizer.from_pretrained(\n            EMBED_MODEL_ID,\n\
+          \            resume_download=True,\n            timeout=60,\n        )\n\
+          \        print(f\"docling-chunk: loaded tokenizer from {EMBED_MODEL_ID}\"\
+          , flush=True)\n    except Exception as e:\n        print(f\"docling-chunk:\
+          \ ERROR loading tokenizer: {e}\", flush=True)\n        raise RuntimeError(\n\
+          \            f\"Failed to load tokenizer model {EMBED_MODEL_ID}. \"\n  \
+          \          \"Ensure network access to HuggingFace Hub or pre-download the\
+          \ model.\"\n        ) from e\n\n    tokenizer = HuggingFaceTokenizer(\n\
+          \        tokenizer=hf_tokenizer,\n        max_tokens=max_tokens,\n    )\n\
+          \n    # Initialize Hybrid chunker with user-specified parameters\n    #\
+          \ tokenizer: The tokenizer wrapper to use for counting tokens (includes\
+          \ max_tokens)\n    # merge_peers: if true, smaller adjacent chunks will\
+          \ be merged together\n    chunker = HybridChunker(\n        tokenizer=tokenizer,\n\
+          \        merge_peers=merge_peers,\n    )\n\n    # Find all JSON files in\
+          \ the input directory\n    json_files = list(input_path_p.glob(\"*.json\"\
+          ))\n    if not json_files:\n        print(f\"docling-chunk: No JSON files\
+          \ found in {input_path_p}\", flush=True)\n        return\n\n    print(\n\
+          \        f\"docling-chunk: processing {len(json_files)} files with max_tokens={max_tokens}\
+          \ and merge_peers={merge_peers}\",\n        flush=True,\n    )\n\n    #\
+          \ Track processing results\n    processed_count = 0\n    skipped_files =\
+          \ []\n\n    # Process each file\n    for json_file in json_files:\n    \
+          \    print(f\"docling-chunk: processing {json_file}\", flush=True)\n\n \
+          \       # Load and validate the JSON file\n        try:\n            with\
+          \ open(json_file, \"r\", encoding=\"utf-8\") as f:\n                doc_data\
+          \ = json.load(f)\n        except json.JSONDecodeError as e:\n          \
+          \  print(\n                f\"docling-chunk: skipping {json_file.name} -\
+          \ invalid JSON: {e}\",\n                flush=True,\n            )\n   \
+          \         skipped_files.append((json_file.name, f\"invalid JSON: {e}\"))\n\
+          \            continue\n\n        # Parse the JSON data into a DoclingDocument\
+          \ object\n        # This validates that the JSON conforms to the DoclingDocument\
+          \ schema\n        try:\n            doc = DoclingDocument.model_validate(doc_data)\n\
+          \        except Exception as e:\n            # Catches pydantic.ValidationError\
+          \ and any other validation issues\n            print(\n                f\"\
+          docling-chunk: skipping {json_file.name} - not a valid DoclingDocument:\
+          \ {e}\",\n                flush=True,\n            )\n            skipped_files.append((json_file.name,\
+          \ f\"validation failed: {e}\"))\n            continue\n\n        # Chunk\
+          \ the document using HybridChunker\n        chunks = list(chunker.chunk(dl_doc=doc))\n\
+          \n        # Generate output filename: original_name_chunks.jsonl\n     \
+          \   output_filename = f\"{json_file.stem}_chunks.jsonl\"\n        output_file\
+          \ = output_path_p / output_filename\n\n        # Get current timestamp in\
+          \ ISO format\n        timestamp = datetime.now(timezone.utc).isoformat()\n\
+          \n        # Chunking config (for reproducibility)\n        chunking_config\
+          \ = {\n            \"max_tokens\": max_tokens,\n            \"merge_peers\"\
+          : merge_peers,\n            \"tokenizer_model\": EMBED_MODEL_ID,\n     \
+          \   }\n\n        # Write chunks as JSONL (one JSON object per line)\n  \
+          \      with open(output_file, \"w\", encoding=\"utf-8\") as f:\n       \
+          \     for idx, chunk in enumerate(chunks):\n                # Get contextualized\
+          \ text for this chunk\n                chunk_text = chunker.contextualize(chunk=chunk)\n\
+          \n                # Build the chunk object\n                chunk_obj =\
+          \ {\n                    \"timestamp\": timestamp,\n                   \
+          \ \"source_document\": json_file.name,\n                    \"chunk_index\"\
+          : idx,\n                    \"chunking_config\": chunking_config,\n    \
+          \                \"text\": chunk_text,\n                }\n\n          \
+          \      # Write as a single line of JSON\n                f.write(json.dumps(chunk_obj,\
+          \ ensure_ascii=False) + \"\\n\")\n\n        print(\n            f\"docling-chunk:\
+          \ saved {len(chunks)} chunks to {output_filename}\",\n            flush=True,\n\
+          \        )\n        processed_count += 1\n\n    # Report summary\n    print(\n\
+          \        f\"docling-chunk: done - processed {processed_count}/{len(json_files)}\
+          \ files\",\n        flush=True,\n    )\n    if skipped_files:\n        print(\n\
+          \            f\"docling-chunk: skipped {len(skipped_files)} invalid files:\"\
+          ,\n            flush=True,\n        )\n        for filename, reason in skipped_files:\n\
+          \            print(f\"  - {filename}: {reason}\", flush=True)\n\n"
+        image: quay.io/fabianofranz/docling-ubi9:2.54.0
+        resources:
+          cpuLimit: 2.0
+          cpuRequest: 0.25
+          memoryLimit: 2.0
+          memoryRequest: 0.512
+          resourceCpuLimit: '2'
+          resourceCpuRequest: 250m
+          resourceMemoryLimit: 2G
+          resourceMemoryRequest: 512M
+    exec-docling-convert-standard:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - docling_convert_standard
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef docling_convert_standard(\n    input_path: dsl.Input[dsl.Artifact],\n\
+          \    artifacts_path: dsl.Input[dsl.Artifact],\n    output_path: dsl.Output[dsl.Artifact],\n\
+          \    pdf_filenames: List[str],\n    pdf_backend: str = \"dlparse_v4\",\n\
+          \    image_export_mode: str = \"embedded\",\n    table_mode: str = \"accurate\"\
+          ,\n    num_threads: int = 4,\n    timeout_per_document: int = 300,\n   \
+          \ ocr: bool = True,\n    force_ocr: bool = False,\n    ocr_engine: str =\
+          \ \"tesseract_cli\",\n    allow_external_plugins: bool = False,\n    enrich_code:\
+          \ bool = False,\n    enrich_formula: bool = False,\n    enrich_picture_classes:\
+          \ bool = False,\n    enrich_picture_description: bool = False,\n):\n   \
+          \ \"\"\"\n    Convert a list of PDF files to JSON and Markdown using Docling\
+          \ (Standard Pipeline).\n\n    Args:\n        input_path: Path to the input\
+          \ directory containing PDF files.\n        artifacts_path: Path to the directory\
+          \ containing Docling models.\n        output_path: Path to the output directory\
+          \ for converted JSON and Markdown files.\n        pdf_filenames: List of\
+          \ PDF file names to process.\n        pdf_backend: Backend to use for PDF\
+          \ processing.\n        image_export_mode: Mode to export images.\n     \
+          \   table_mode: Mode to detect tables.\n        num_threads: Number of threads\
+          \ to use per document processing.\n        timeout_per_document: Timeout\
+          \ per document processing.\n        ocr: Whether or not to use OCR if needed.\n\
+          \        force_ocr: Whether or not to force OCR.\n        ocr_engine: Engine\
+          \ to use for OCR.\n        allow_external_plugins: Whether or not to allow\
+          \ external plugins.\n        enrich_code: Whether or not to enrich code.\n\
+          \        enrich_formula: Whether or not to enrich formula.\n        enrich_picture_classes:\
+          \ Whether or not to enrich picture classes.\n        enrich_picture_description:\
+          \ Whether or not to enrich picture description.\n    \"\"\"\n    from importlib\
+          \ import import_module  # pylint: disable=import-outside-toplevel\n    from\
+          \ pathlib import Path  # pylint: disable=import-outside-toplevel\n\n   \
+          \ from docling.datamodel.accelerator_options import (  # pylint: disable=import-outside-toplevel\n\
+          \        AcceleratorDevice,\n        AcceleratorOptions,\n    )\n    from\
+          \ docling.datamodel.base_models import (\n        InputFormat,\n    )  #\
+          \ pylint: disable=import-outside-toplevel\n    from docling.datamodel.pipeline_options\
+          \ import (  # pylint: disable=import-outside-toplevel\n        EasyOcrOptions,\n\
+          \        OcrEngine,\n        OcrMacOptions,\n        PdfBackend,\n     \
+          \   PdfPipelineOptions,\n        RapidOcrOptions,\n        TableFormerMode,\n\
+          \        TesseractCliOcrOptions,\n        TesseractOcrOptions,\n    )\n\
+          \    from docling.document_converter import (  # pylint: disable=import-outside-toplevel\n\
+          \        DocumentConverter,\n        PdfFormatOption,\n    )\n    from docling.pipeline.standard_pdf_pipeline\
+          \ import (\n        StandardPdfPipeline,\n    )  # pylint: disable=import-outside-toplevel\n\
+          \    from docling_core.types.doc.base import (\n        ImageRefMode,\n\
+          \    )  # pylint: disable=import-outside-toplevel\n\n    if not pdf_filenames:\n\
+          \        raise ValueError(\n            \"pdf_filenames must be provided\
+          \ with the list of file names to process\"\n        )\n\n    allowed_pdf_backends\
+          \ = {e.value for e in PdfBackend}\n    if pdf_backend not in allowed_pdf_backends:\n\
+          \        raise ValueError(\n            f\"Invalid pdf_backend: {pdf_backend}.\
+          \ Must be one of {sorted(allowed_pdf_backends)}\"\n        )\n\n    allowed_table_modes\
+          \ = {e.value for e in TableFormerMode}\n    if table_mode not in allowed_table_modes:\n\
+          \        raise ValueError(\n            f\"Invalid table_mode: {table_mode}.\
+          \ Must be one of {sorted(allowed_table_modes)}\"\n        )\n\n    allowed_image_export_modes\
+          \ = {e.value for e in ImageRefMode}\n    if image_export_mode not in allowed_image_export_modes:\n\
+          \        raise ValueError(\n            f\"Invalid image_export_mode: {image_export_mode}.\
+          \ Must be one of {sorted(allowed_image_export_modes)}\"\n        )\n\n \
+          \   if not allow_external_plugins:\n        allowed_ocr_engines = {e.value\
+          \ for e in OcrEngine}\n        if ocr_engine not in allowed_ocr_engines:\n\
+          \            raise ValueError(\n                f\"Invalid ocr_engine: {ocr_engine}.\
+          \ Must be one of {sorted(allowed_ocr_engines)}\"\n            )\n\n    #\
+          \ Dictionary to map the engine name string to the corresponding class\n\
+          \    ocr_engine_map = {\n        \"easyocr\": EasyOcrOptions,\n        \"\
+          tesseract_cli\": TesseractCliOcrOptions,\n        \"tesseract\": TesseractOcrOptions,\n\
+          \        \"ocrmac\": OcrMacOptions,\n        \"rapidocr\": RapidOcrOptions,\n\
+          \    }\n\n    input_path_p = Path(input_path.path)\n    artifacts_path_p\
+          \ = Path(artifacts_path.path)\n    output_path_p = Path(output_path.path)\n\
+          \    output_path_p.mkdir(parents=True, exist_ok=True)\n\n    input_pdfs\
+          \ = [input_path_p / name for name in pdf_filenames]\n    print(\n      \
+          \  f\"docling-standard-convert: starting with backend='{pdf_backend}', files={len(input_pdfs)}\"\
+          ,\n        flush=True,\n    )\n\n    pipeline_options = PdfPipelineOptions()\n\
+          \    pipeline_options.artifacts_path = artifacts_path_p\n    pipeline_options.do_code_enrichment\
+          \ = enrich_code\n    pipeline_options.do_formula_enrichment = enrich_formula\n\
+          \    pipeline_options.do_picture_classification = enrich_picture_classes\n\
+          \    pipeline_options.do_picture_description = enrich_picture_description\n\
+          \    pipeline_options.do_ocr = ocr\n    if ocr and ocr_engine in ocr_engine_map:\n\
+          \        OcrOptionsClass = ocr_engine_map[ocr_engine]\n        ocr_options_instance\
+          \ = OcrOptionsClass(force_full_page_ocr=force_ocr)\n        pipeline_options.ocr_options\
+          \ = ocr_options_instance\n    pipeline_options.do_table_structure = True\n\
+          \    pipeline_options.table_structure_options.do_cell_matching = True\n\
+          \    pipeline_options.generate_page_images = True\n    pipeline_options.table_structure_options.mode\
+          \ = TableFormerMode(table_mode)\n    pipeline_options.document_timeout =\
+          \ float(timeout_per_document)\n    pipeline_options.accelerator_options\
+          \ = AcceleratorOptions(\n        num_threads=num_threads, device=AcceleratorDevice.AUTO\n\
+          \    )\n\n    backend_to_impl = {\n        PdfBackend.PYPDFIUM2.value: (\n\
+          \            \"docling.backend.pypdfium2_backend\",\n            \"PyPdfiumDocumentBackend\"\
+          ,\n        ),\n        PdfBackend.DLPARSE_V1.value: (\n            \"docling.backend.docling_parse_backend\"\
+          ,\n            \"DoclingParseDocumentBackend\",\n        ),\n        PdfBackend.DLPARSE_V2.value:\
+          \ (\n            \"docling.backend.docling_parse_v2_backend\",\n       \
+          \     \"DoclingParseV2DocumentBackend\",\n        ),\n        PdfBackend.DLPARSE_V4.value:\
+          \ (\n            \"docling.backend.docling_parse_v4_backend\",\n       \
+          \     \"DoclingParseV4DocumentBackend\",\n        ),\n    }\n\n    module_name,\
+          \ class_name = backend_to_impl[pdf_backend]\n    backend_class = getattr(import_module(module_name),\
+          \ class_name)\n\n    doc_converter = DocumentConverter(\n        format_options={\n\
+          \            InputFormat.PDF: PdfFormatOption(\n                pipeline_options=pipeline_options,\n\
+          \                backend=backend_class,\n                pipeline_cls=StandardPdfPipeline,\n\
+          \            )\n        }\n    )\n\n    results = doc_converter.convert_all(input_pdfs,\
+          \ raises_on_error=True)\n\n    for result in results:\n        doc_filename\
+          \ = result.input.file.stem\n\n        output_json_path = output_path_p /\
+          \ f\"{doc_filename}.json\"\n        print(f\"docling-standard-convert: saving\
+          \ {output_json_path}\", flush=True)\n        result.document.save_as_json(\n\
+          \            output_json_path, image_mode=ImageRefMode(image_export_mode)\n\
+          \        )\n\n        output_md_path = output_path_p / f\"{doc_filename}.md\"\
+          \n        print(f\"docling-standard-convert: saving {output_md_path}\",\
+          \ flush=True)\n        result.document.save_as_markdown(\n            output_md_path,\
+          \ image_mode=ImageRefMode(image_export_mode)\n        )\n\n    print(\"\
+          docling-standard-convert: done\", flush=True)\n\n"
+        image: quay.io/fabianofranz/docling-ubi9:2.54.0
+        resources:
+          cpuLimit: 4.0
+          cpuRequest: 0.5
+          memoryLimit: 6.0
+          memoryRequest: 1.0
+          resourceCpuLimit: '4'
+          resourceCpuRequest: 500m
+          resourceMemoryLimit: 6G
+          resourceMemoryRequest: 1G
+    exec-download-docling-models:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - download_docling_models
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef download_docling_models(\n    output_path: dsl.Output[dsl.Artifact],\n\
+          \    pipeline_type: str = \"standard\",\n    remote_model_endpoint_enabled:\
+          \ bool = False,\n):\n    \"\"\"\n    Download Docling models based on pipeline\
+          \ type and configuration.\n\n    This unified component handles model downloading\
+          \ for different pipeline types:\n    - standard : Download traditional Docling\
+          \ models (layout, tableformer)\n    - vlm : Download Docling VLM models\
+          \ (smolvlm, smoldocling) for local inference\n             When remote_model_endpoint_enabled=True,\
+          \ downloads minimal models for remote inference\n\n    Args:\n        output_path:\
+          \ Path to the output directory for Docling models\n        pipeline_type:\
+          \ Type of pipeline (standard, vlm)\n        remote_model_endpoint_enabled:\
+          \ Whether to download remote model endpoint models (VLM only)\n    \"\"\"\
+          \n    from pathlib import Path  # pylint: disable=import-outside-toplevel\n\
+          \n    from docling.utils.model_downloader import (\n        download_models,\n\
+          \    )  # pylint: disable=import-outside-toplevel\n\n    output_path_p =\
+          \ Path(output_path.path)\n    output_path_p.mkdir(parents=True, exist_ok=True)\n\
+          \n    if pipeline_type == \"standard\":\n        # Standard pipeline: download\
+          \ traditional models\n        download_models(\n            output_dir=output_path_p,\n\
+          \            progress=True,\n            with_layout=True,\n           \
+          \ with_tableformer=True,\n            with_easyocr=False,\n        )\n \
+          \   elif pipeline_type == \"vlm\" and remote_model_endpoint_enabled:\n \
+          \       # VLM pipeline with remote model endpoint: Download minimal required\
+          \ models\n        # Only models set are what lives in fabianofranz repo\n\
+          \        # TODO: figure out what needs to be downloaded or removed\n   \
+          \     download_models(\n            output_dir=output_path_p,\n        \
+          \    progress=False,\n            force=False,\n            with_layout=True,\n\
+          \            with_tableformer=True,\n            with_code_formula=False,\n\
+          \            with_picture_classifier=False,\n            with_smolvlm=False,\n\
+          \            with_smoldocling=False,\n            with_smoldocling_mlx=False,\n\
+          \            with_granite_vision=False,\n            with_easyocr=False,\n\
+          \        )\n    elif pipeline_type == \"vlm\":\n        # VLM pipeline with\
+          \ local models: Download VLM models for local inference\n        # TODO:\
+          \ set models downloaded by model name passed into KFP pipeline ex: smoldocling\
+          \ OR granite-vision\n        download_models(\n            output_dir=output_path_p,\n\
+          \            with_smolvlm=True,\n            with_smoldocling=True,\n  \
+          \          progress=False,\n            force=False,\n            with_layout=False,\n\
+          \            with_tableformer=False,\n            with_code_formula=False,\n\
+          \            with_picture_classifier=False,\n            with_smoldocling_mlx=False,\n\
+          \            with_granite_vision=False,\n            with_easyocr=False,\n\
+          \        )\n    else:\n        raise ValueError(\n            f\"Invalid\
+          \ pipeline_type: {pipeline_type}. Must be 'standard' or 'vlm'\"\n      \
+          \  )\n\n"
+        image: quay.io/fabianofranz/docling-ubi9:2.54.0
+    exec-import-pdfs:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - import_pdfs
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'boto3' 'requests'\
+          \  &&  python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef import_pdfs(\n    output_path: dsl.Output[dsl.Artifact],\n  \
+          \  filenames: str,\n    base_url: str,\n    from_s3: bool = False,\n   \
+          \ s3_secret_mount_path: str = \"/mnt/secrets\",\n):\n    \"\"\"\n    Import\
+          \ PDF filenames (comma-separated) from specified URL or S3 bucket.\n\n \
+          \   Args:\n        filenames: List of PDF filenames to import.\n       \
+          \ base_url: Base URL of the PDF files.\n        output_path: Path to the\
+          \ output directory for the PDF files.\n        from_s3: Whether or not to\
+          \ import from S3.\n        s3_secret_mount_path: Path to the secret mount\
+          \ path for the S3 credentials.\n    \"\"\"\n    import os  # pylint: disable=import-outside-toplevel\n\
+          \    from pathlib import Path  # pylint: disable=import-outside-toplevel\n\
+          \n    import boto3  # pylint: disable=import-outside-toplevel\n    import\
+          \ requests  # pylint: disable=import-outside-toplevel\n\n    filenames_list\
+          \ = [name.strip() for name in filenames.split(\",\") if name.strip()]\n\
+          \    if not filenames_list:\n        raise ValueError(\n            \"filenames\
+          \ must contain at least one filename (comma-separated)\"\n        )\n\n\
+          \    output_path_p = Path(output_path.path)\n    output_path_p.mkdir(parents=True,\
+          \ exist_ok=True)\n\n    if from_s3:\n        if not os.path.exists(s3_secret_mount_path):\n\
+          \            raise ValueError(\n                f\"Secret for S3 should\
+          \ be mounted in {s3_secret_mount_path}\"\n            )\n\n        s3_endpoint_url_secret\
+          \ = \"S3_ENDPOINT_URL\"\n        s3_endpoint_url_file_path = os.path.join(\n\
+          \            s3_secret_mount_path, s3_endpoint_url_secret\n        )\n \
+          \       if os.path.isfile(s3_endpoint_url_file_path):\n            with\
+          \ open(s3_endpoint_url_file_path) as f:\n                s3_endpoint_url\
+          \ = f.read()\n        else:\n            raise ValueError(\n           \
+          \     f\"Key {s3_endpoint_url_secret} not defined in secret {s3_secret_mount_path}\"\
+          \n            )\n\n        s3_access_key_secret = \"S3_ACCESS_KEY\"\n  \
+          \      s3_access_key_file_path = os.path.join(\n            s3_secret_mount_path,\
+          \ s3_access_key_secret\n        )\n        if os.path.isfile(s3_access_key_file_path):\n\
+          \            with open(s3_access_key_file_path) as f:\n                s3_access_key\
+          \ = f.read()\n        else:\n            raise ValueError(\n           \
+          \     f\"Key {s3_access_key_secret} not defined in secret {s3_secret_mount_path}\"\
+          \n            )\n\n        s3_secret_key_secret = \"S3_SECRET_KEY\"\n  \
+          \      s3_secret_key_file_path = os.path.join(\n            s3_secret_mount_path,\
+          \ s3_secret_key_secret\n        )\n        if os.path.isfile(s3_secret_key_file_path):\n\
+          \            with open(s3_secret_key_file_path) as f:\n                s3_secret_key\
+          \ = f.read()\n        else:\n            raise ValueError(\n           \
+          \     f\"Key {s3_secret_key_secret} not defined in secret {s3_secret_mount_path}\"\
+          \n            )\n\n        s3_bucket_secret = \"S3_BUCKET\"\n        s3_bucket_file_path\
+          \ = os.path.join(s3_secret_mount_path, s3_bucket_secret)\n        if os.path.isfile(s3_bucket_file_path):\n\
+          \            with open(s3_bucket_file_path) as f:\n                s3_bucket\
+          \ = f.read()\n        else:\n            raise ValueError(\n           \
+          \     f\"Key {s3_bucket_secret} not defined in secret {s3_secret_mount_path}\"\
+          \n            )\n\n        s3_prefix_secret = \"S3_PREFIX\"\n        s3_prefix_file_path\
+          \ = os.path.join(s3_secret_mount_path, s3_prefix_secret)\n        if os.path.isfile(s3_prefix_file_path):\n\
+          \            with open(s3_prefix_file_path) as f:\n                s3_prefix\
+          \ = f.read()\n        else:\n            raise ValueError(\n           \
+          \     f\"Key {s3_prefix_secret} not defined in secret {s3_secret_mount_path}\"\
+          \n            )\n\n        if not s3_endpoint_url:\n            raise ValueError(\"\
+          S3_ENDPOINT_URL must be provided\")\n\n        if not s3_bucket:\n     \
+          \       raise ValueError(\"S3_BUCKET must be provided\")\n\n        s3_client\
+          \ = boto3.client(\n            \"s3\",\n            endpoint_url=s3_endpoint_url,\n\
+          \            aws_access_key_id=s3_access_key,\n            aws_secret_access_key=s3_secret_key,\n\
+          \        )\n\n        for filename in filenames_list:\n            orig\
+          \ = f\"{s3_prefix.rstrip('/')}/{filename.lstrip('/')}\"\n            dest\
+          \ = output_path_p / filename\n            print(f\"import-test-pdfs: downloading\
+          \ {orig} -> {dest} from s3\", flush=True)\n            s3_client.download_file(s3_bucket,\
+          \ orig, dest)\n    else:\n        if not base_url:\n            raise ValueError(\"\
+          base_url must be provided\")\n\n        for filename in filenames_list:\n\
+          \            url = f\"{base_url.rstrip('/')}/{filename.lstrip('/')}\"\n\
+          \            dest = output_path_p / filename\n            print(f\"import-test-pdfs:\
+          \ downloading {url} -> {dest}\", flush=True)\n            with requests.get(url,\
+          \ stream=True, timeout=30) as resp:\n                resp.raise_for_status()\n\
+          \                with dest.open(\"wb\") as f:\n                    for chunk\
+          \ in resp.iter_content(chunk_size=8192):\n                        if chunk:\n\
+          \                            f.write(chunk)\n\n    print(\"import-test-pdfs:\
+          \ done\", flush=True)\n\n"
+        image: registry.access.redhat.com/ubi9/python-311:9.6-1755074620
+    exec-interpret-policy-artifacts:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - interpret_policy_artifacts
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.14.6'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef interpret_policy_artifacts(\n    input_path: dsl.Input[dsl.Artifact],\n\
+          \    output_path: dsl.Output[dsl.Artifact],\n    vlm_secret_mount_path:\
+          \ str = \"/mnt/secrets\",\n    vlm_max_tokens: int = 1024,\n    vlm_timeout:\
+          \ int = 120,\n):\n    \"\"\"\n    Classify and interpret non-text artifacts\
+          \ in policy documents using a VLM.\n\n    Reads Docling conversion output\
+          \ (JSON, Markdown, and referenced image files),\n    sends each extracted\
+          \ image to a VLM for artifact-type classification and\n    type-specific\
+          \ structured interpretation, then assembles final Markdown with\n    interpreted\
+          \ content replacing image references wrapped in artifact-type markers.\n\
+          \n    Args:\n        input_path: Path to directory containing Docling conversion\
+          \ output.\n        output_path: Path to output directory for assembled policy\
+          \ Markdown,\n            artifact metadata, and passthrough DoclingDocument\
+          \ JSON.\n        vlm_secret_mount_path: Path to mounted Kubernetes secret\
+          \ containing\n            REMOTE_MODEL_ENDPOINT_URL, REMOTE_MODEL_NAME,\
+          \ REMOTE_MODEL_API_KEY.\n        vlm_max_tokens: Maximum tokens for each\
+          \ VLM interpretation response.\n        vlm_timeout: Timeout in seconds\
+          \ per VLM API call.\n    \"\"\"\n    import base64\n    import json\n  \
+          \  import os\n    import re\n    import shutil\n    import time\n    from\
+          \ pathlib import Path\n\n    import requests\n\n    CLASSIFICATION_PROMPT\
+          \ = (\n        \"You are analyzing an image extracted from a policy document.\
+          \ \"\n        \"Classify this image into exactly one of the following categories.\
+          \ \"\n        \"Respond with ONLY the category name, nothing else.\\n\\\
+          n\"\n        \"Categories:\\n\"\n        \"- chart: Any type of chart, graph,\
+          \ or plot (bar, line, pie, scatter, etc.)\\n\"\n        \"- risk_matrix:\
+          \ A risk assessment matrix or heat map showing likelihood vs impact\\n\"\
+          \n        \"- decision_tree: A decision tree, flowchart showing decision\
+          \ logic with branches\\n\"\n        \"- form: A form, questionnaire, or\
+          \ template with fields to fill in\\n\"\n        \"- screenshot: A screenshot\
+          \ of a user interface or application\\n\"\n        \"- diagram: An architecture\
+          \ diagram, process flow, org chart, or network diagram\\n\"\n        \"\
+          - other: Any other type of image that doesn't fit the above categories\"\
+          \n    )\n\n    INTERPRETATION_PROMPTS = {\n        \"risk_matrix\": (\n\
+          \            \"Convert this risk matrix into structured Markdown. \"\n \
+          \           \"Create a Markdown table that preserves all row headers, column\
+          \ headers, \"\n            \"and cell values. Include severity levels and\
+          \ any color coding described as \"\n            \"text labels (e.g., 'High\
+          \ Risk'). Add any legends, footnotes, or scoring \"\n            \"criteria\
+          \ below the table.\"\n        ),\n        \"decision_tree\": (\n       \
+          \     \"Convert this decision tree into a nested Markdown list representing\
+          \ the \"\n            \"complete decision logic. Use indentation to show\
+          \ hierarchy and branches. \"\n            \"Each decision point should show\
+          \ the question or condition. \"\n            \"Each branch should show the\
+          \ path taken (Yes/No, or named paths). \"\n            \"Each leaf node\
+          \ should show the final outcome or action. \"\n            \"Preserve all\
+          \ labels, conditions, thresholds, and outcomes exactly as shown.\"\n   \
+          \     ),\n        \"chart\": (\n            \"Describe this chart in structured\
+          \ Markdown. Include:\\n\"\n            \"- **Chart type**: (bar, line, pie,\
+          \ etc.)\\n\"\n            \"- **Title**: The chart title if visible\\n\"\
+          \n            \"- **Axes**: X-axis and Y-axis labels and units\\n\"\n  \
+          \          \"- **Data summary**: A Markdown table with the key data points\
+          \ and values\\n\"\n            \"- **Trends**: Notable trends, peaks, or\
+          \ patterns in the data\\n\"\n            \"- **Annotations**: Any callouts,\
+          \ labels, or annotations on the chart\"\n        ),\n        \"form\": (\n\
+          \            \"Convert this form into structured Markdown. \"\n        \
+          \    \"Create a Markdown table with 'Field' and 'Value/Description' columns.\
+          \ \"\n            \"Include all field labels and any pre-filled values.\
+          \ \"\n            \"For checkboxes, indicate [x] checked or [ ] unchecked.\
+          \ \"\n            \"For dropdowns, show the selected value if visible. \"\
+          \n            \"Include section headers, instructions, and help text.\"\n\
+          \        ),\n        \"screenshot\": (\n            \"Describe this UI screenshot\
+          \ as a structured step-by-step walkthrough. \"\n            \"Identify the\
+          \ application or interface shown. \"\n            \"Describe visible elements:\
+          \ navigation, buttons, menus, form fields, \"\n            \"status indicators,\
+          \ data displays, and notifications. \"\n            \"Note the current state\
+          \ or action being performed. \"\n            \"If it shows a workflow or\
+          \ sequence, use numbered steps.\"\n        ),\n        \"diagram\": (\n\
+          \            \"Describe this diagram in structured Markdown. \"\n      \
+          \      \"List all components and their labels. \"\n            \"Describe\
+          \ relationships and connections between components. \"\n            \"Note\
+          \ directional flows (arrows) and their labels. \"\n            \"Identify\
+          \ groupings, layers, or zones. \"\n            \"Use a nested list to represent\
+          \ the hierarchy, or a table for \"\n            \"components and connections.\
+          \ \"\n            \"Preserve any annotations, version numbers, or metadata\
+          \ shown.\"\n        ),\n        \"other\": (\n            \"Describe the\
+          \ content of this image in structured Markdown. \"\n            \"Preserve\
+          \ all visible text, numbers, labels, and structural information. \"\n  \
+          \          \"Use appropriate Markdown formatting \u2014 tables for tabular\
+          \ data, \"\n            \"lists for hierarchical or sequential content,\
+          \ and headings for sections. \"\n            \"Capture any legends, footnotes,\
+          \ or annotations.\"\n        ),\n    }\n\n    VALID_TYPES = set(INTERPRETATION_PROMPTS.keys())\n\
+          \n    # --- Read VLM credentials from mounted secret or environment variables\
+          \ ---\n    def read_secret(name):\n        fpath = os.path.join(vlm_secret_mount_path,\
+          \ name)\n        if os.path.isfile(fpath):\n            with open(fpath)\
+          \ as f:\n                return f.read().strip()\n        env_val = os.environ.get(name)\n\
+          \        if env_val is not None:\n            return env_val\n        raise\
+          \ ValueError(\n            f\"Key {name} not found in secret mount {vlm_secret_mount_path}\
+          \ \"\n            f\"or environment variable {name}\"\n        )\n\n   \
+          \ if not os.path.exists(vlm_secret_mount_path):\n        print(\n      \
+          \      f\"Secret mount path {vlm_secret_mount_path} not found, \"\n    \
+          \        \"falling back to environment variables\",\n            flush=True,\n\
+          \        )\n\n    vlm_endpoint_url = read_secret(\"REMOTE_MODEL_ENDPOINT_URL\"\
+          )\n    vlm_model_name = read_secret(\"REMOTE_MODEL_NAME\")\n    vlm_api_key\
+          \ = read_secret(\"REMOTE_MODEL_API_KEY\")\n\n    if not vlm_endpoint_url.endswith(\"\
+          /v1/chat/completions\"):\n        vlm_endpoint_url = vlm_endpoint_url.rstrip(\"\
+          /\")\n        if not vlm_endpoint_url.endswith(\"/v1\"):\n            vlm_endpoint_url\
+          \ += \"/v1\"\n        vlm_endpoint_url += \"/chat/completions\"\n\n    input_path_p\
+          \ = Path(input_path.path)\n    output_path_p = Path(output_path.path)\n\
+          \    output_path_p.mkdir(parents=True, exist_ok=True)\n\n    # --- VLM call\
+          \ helper with retries ---\n    def call_vlm(image_b64, prompt, max_tokens):\n\
+          \        payload = {\n            \"model\": vlm_model_name,\n         \
+          \   \"messages\": [\n                {\n                    \"role\": \"\
+          user\",\n                    \"content\": [\n                        {\"\
+          type\": \"text\", \"text\": prompt},\n                        {\n      \
+          \                      \"type\": \"image_url\",\n                      \
+          \      \"image_url\": {\"url\": f\"data:image/png;base64,{image_b64}\"},\n\
+          \                        },\n                    ],\n                }\n\
+          \            ],\n            \"max_tokens\": max_tokens,\n        }\n  \
+          \      headers = {}\n        if vlm_api_key:\n            headers[\"Authorization\"\
+          ] = f\"Bearer {vlm_api_key}\"\n\n        for attempt in range(3):\n    \
+          \        try:\n                resp = requests.post(\n                 \
+          \   vlm_endpoint_url,\n                    json=payload,\n             \
+          \       headers=headers,\n                    timeout=vlm_timeout,\n   \
+          \             )\n                resp.raise_for_status()\n             \
+          \   return resp.json()[\"choices\"][0][\"message\"][\"content\"]\n     \
+          \       except (requests.RequestException, KeyError, IndexError) as e:\n\
+          \                if attempt < 2:\n                    wait = 2 ** (attempt\
+          \ + 1)\n                    print(\n                        f\"  VLM call\
+          \ attempt {attempt + 1} failed: {e}. \"\n                        f\"Retrying\
+          \ in {wait}s...\",\n                        flush=True,\n              \
+          \      )\n                    time.sleep(wait)\n                else:\n\
+          \                    raise RuntimeError(f\"VLM call failed after 3 attempts:\
+          \ {e}\") from e\n\n    def resolve_image_path(img_ref, doc_name):\n    \
+          \    \"\"\"Try multiple strategies to find the image file.\"\"\"\n     \
+          \   candidates = [\n            input_path_p / img_ref,\n            input_path_p\
+          \ / doc_name / img_ref,\n            input_path_p / Path(img_ref).name,\n\
+          \        ]\n        for candidate in candidates:\n            if candidate.exists():\n\
+          \                return candidate\n        found = list(input_path_p.rglob(Path(img_ref).name))\n\
+          \        if found:\n            return found[0]\n        return None\n\n\
+          \    # --- Process each document ---\n    md_files = sorted(input_path_p.glob(\"\
+          *.md\"))\n    if not md_files:\n        print(\n            \"interpret-policy-artifacts:\
+          \ no markdown files found, nothing to process\",\n            flush=True,\n\
+          \        )\n        return\n\n    print(\n        f\"interpret-policy-artifacts:\
+          \ processing {len(md_files)} document(s)\",\n        flush=True,\n    )\n\
+          \n    img_pattern = re.compile(r\"!\\[([^\\]]*)\\]\\(([^)]+)\\)\")\n\n \
+          \   for md_file in md_files:\n        doc_name = md_file.stem\n        print(f\"\
+          interpret-policy-artifacts: processing {doc_name}\", flush=True)\n\n   \
+          \     md_content = md_file.read_text(encoding=\"utf-8\")\n        matches\
+          \ = list(img_pattern.finditer(md_content))\n\n        if not matches:\n\
+          \            print(f\"  {doc_name}: no images found, copying markdown as-is\"\
+          , flush=True)\n            shutil.copy2(md_file, output_path_p / f\"{doc_name}_policy.md\"\
+          )\n            json_src = input_path_p / f\"{doc_name}.json\"\n        \
+          \    if json_src.exists():\n                shutil.copy2(json_src, output_path_p\
+          \ / f\"{doc_name}.json\")\n            metadata_dir = output_path_p / \"\
+          metadata\"\n            metadata_dir.mkdir(parents=True, exist_ok=True)\n\
+          \            with open(metadata_dir / f\"{doc_name}_artifacts.json\", \"\
+          w\") as f:\n                json.dump(\n                    {\n        \
+          \                \"document\": doc_name,\n                        \"total_images\"\
+          : 0,\n                        \"total_artifacts\": 0,\n                \
+          \        \"skipped\": [],\n                        \"artifacts\": [],\n\
+          \                    },\n                    f,\n                    indent=2,\n\
+          \                )\n            continue\n\n        print(f\"  {doc_name}:\
+          \ found {len(matches)} image(s) to interpret\", flush=True)\n\n        artifacts_metadata\
+          \ = []\n        skipped_metadata = []\n        assembled_md = md_content\n\
+          \n        for idx, match in enumerate(matches):\n            img_ref = match.group(2)\n\
+          \            full_match_text = match.group(0)\n\n            img_path =\
+          \ resolve_image_path(img_ref, doc_name)\n            if img_path is None:\n\
+          \                print(f\"  {doc_name}: image {img_ref} not found, skipping\"\
+          , flush=True)\n                skipped_metadata.append(\n              \
+          \      {\"index\": idx, \"source_image\": str(img_ref), \"reason\": \"not\
+          \ found\"}\n                )\n                continue\n\n            with\
+          \ open(img_path, \"rb\") as f:\n                img_b64 = base64.b64encode(f.read()).decode(\"\
+          utf-8\")\n\n            # Step 1: Classify artifact type\n            print(\n\
+          \                f\"  {doc_name}: classifying image {idx + 1}/{len(matches)}...\"\
+          ,\n                flush=True,\n            )\n            raw_type = call_vlm(img_b64,\
+          \ CLASSIFICATION_PROMPT, max_tokens=20)\n            artifact_type = raw_type.strip().lower().replace(\"\
+          \ \", \"_\")\n            if artifact_type not in VALID_TYPES:\n       \
+          \         artifact_type = \"other\"\n            print(\n              \
+          \  f\"  {doc_name}: image {idx + 1} classified as '{artifact_type}'\",\n\
+          \                flush=True,\n            )\n\n            # Step 2: Interpret\
+          \ with type-specific prompt\n            print(\n                f\"  {doc_name}:\
+          \ interpreting image {idx + 1} as {artifact_type}...\",\n              \
+          \  flush=True,\n            )\n            interpretation = call_vlm(\n\
+          \                img_b64,\n                INTERPRETATION_PROMPTS[artifact_type],\n\
+          \                max_tokens=vlm_max_tokens,\n            )\n\n         \
+          \   # Step 3: Build replacement with artifact markers\n            replacement\
+          \ = (\n                f\"<!-- artifact: {artifact_type} -->\\n\"\n    \
+          \            f\"{interpretation.strip()}\\n\"\n                f\"<!-- /artifact\
+          \ -->\"\n            )\n            assembled_md = assembled_md.replace(full_match_text,\
+          \ replacement, 1)\n\n            artifacts_metadata.append(\n          \
+          \      {\n                    \"index\": idx,\n                    \"type\"\
+          : artifact_type,\n                    \"source_image\": str(img_ref),\n\
+          \                    \"interpretation\": interpretation.strip(),\n     \
+          \           }\n            )\n\n        # Save assembled policy markdown\n\
+          \        policy_md_path = output_path_p / f\"{doc_name}_policy.md\"\n  \
+          \      policy_md_path.write_text(assembled_md, encoding=\"utf-8\")\n   \
+          \     print(f\"  {doc_name}: saved {policy_md_path.name}\", flush=True)\n\
+          \n        # Save artifact metadata in a subdirectory to avoid conflicts\
+          \ with\n        # the chunker, which globs *.json and validates as DoclingDocument\n\
+          \        metadata_dir = output_path_p / \"metadata\"\n        metadata_dir.mkdir(parents=True,\
+          \ exist_ok=True)\n        artifacts_json_path = metadata_dir / f\"{doc_name}_artifacts.json\"\
+          \n        with open(artifacts_json_path, \"w\", encoding=\"utf-8\") as f:\n\
+          \            json.dump(\n                {\n                    \"document\"\
+          : doc_name,\n                    \"total_images\": len(matches),\n     \
+          \               \"total_artifacts\": len(artifacts_metadata),\n        \
+          \            \"skipped\": skipped_metadata,\n                    \"artifacts\"\
+          : artifacts_metadata,\n                },\n                f,\n        \
+          \        indent=2,\n                ensure_ascii=False,\n            )\n\
+          \        print(f\"  {doc_name}: saved {artifacts_json_path.name}\", flush=True)\n\
+          \n        # Copy DoclingDocument JSON for downstream consumers and chunking\n\
+          \        json_src = input_path_p / f\"{doc_name}.json\"\n        if json_src.exists():\n\
+          \            shutil.copy2(json_src, output_path_p / f\"{doc_name}.json\"\
+          )\n\n    print(\"interpret-policy-artifacts: done\", flush=True)\n\n"
+        image: quay.io/fabianofranz/docling-ubi9:2.54.0
+        resources:
+          cpuLimit: 2.0
+          cpuRequest: 0.25
+          memoryLimit: 4.0
+          memoryRequest: 0.512
+          resourceCpuLimit: '2'
+          resourceCpuRequest: 250m
+          resourceMemoryLimit: 4G
+          resourceMemoryRequest: 512M
+pipelineInfo:
+  description: Policy document conversion pipeline with artifact-type-specific VLM
+    interpretation by the Data Processing Team
+  name: data-processing-docling-vlm-policy-pipeline
+root:
+  dag:
+    tasks:
+      create-pdf-splits:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-create-pdf-splits
+        dependentTasks:
+        - import-pdfs
+        inputs:
+          artifacts:
+            input_path:
+              taskOutputArtifact:
+                outputArtifactKey: output_path
+                producerTask: import-pdfs
+          parameters:
+            num_splits:
+              componentInputParameter: num_splits
+        taskInfo:
+          name: create-pdf-splits
+      download-docling-models:
+        cachingOptions: {}
+        componentRef:
+          name: comp-download-docling-models
+        inputs:
+          parameters:
+            pipeline_type:
+              runtimeValue:
+                constant: standard
+            remote_model_endpoint_enabled:
+              runtimeValue:
+                constant: false
+        taskInfo:
+          name: download-docling-models
+      for-loop-1:
+        componentRef:
+          name: comp-for-loop-1
+        dependentTasks:
+        - create-pdf-splits
+        - download-docling-models
+        - import-pdfs
+        inputs:
+          artifacts:
+            pipelinechannel--download-docling-models-output_path:
+              taskOutputArtifact:
+                outputArtifactKey: output_path
+                producerTask: download-docling-models
+            pipelinechannel--import-pdfs-output_path:
+              taskOutputArtifact:
+                outputArtifactKey: output_path
+                producerTask: import-pdfs
+          parameters:
+            pipelinechannel--create-pdf-splits-Output:
+              taskOutputParameter:
+                outputParameterKey: Output
+                producerTask: create-pdf-splits
+            pipelinechannel--docling_chunk_enabled:
+              componentInputParameter: docling_chunk_enabled
+            pipelinechannel--docling_chunk_max_tokens:
+              componentInputParameter: docling_chunk_max_tokens
+            pipelinechannel--docling_chunk_merge_peers:
+              componentInputParameter: docling_chunk_merge_peers
+            pipelinechannel--docling_num_threads:
+              componentInputParameter: docling_num_threads
+            pipelinechannel--docling_ocr:
+              componentInputParameter: docling_ocr
+            pipelinechannel--docling_table_mode:
+              componentInputParameter: docling_table_mode
+            pipelinechannel--docling_timeout_per_document:
+              componentInputParameter: docling_timeout_per_document
+            pipelinechannel--vlm_max_tokens:
+              componentInputParameter: vlm_max_tokens
+            pipelinechannel--vlm_timeout:
+              componentInputParameter: vlm_timeout
+        parameterIterator:
+          itemInput: pipelinechannel--create-pdf-splits-Output-loop-item
+          items:
+            inputParameter: pipelinechannel--create-pdf-splits-Output
+        taskInfo:
+          name: for-loop-1
+      import-pdfs:
+        cachingOptions: {}
+        componentRef:
+          name: comp-import-pdfs
+        inputs:
+          parameters:
+            base_url:
+              componentInputParameter: pdf_base_url
+            filenames:
+              componentInputParameter: pdf_filenames
+            from_s3:
+              componentInputParameter: pdf_from_s3
+            s3_secret_mount_path:
+              runtimeValue:
+                constant: /mnt/secrets
+        taskInfo:
+          name: import-pdfs
+  inputDefinitions:
+    parameters:
+      docling_chunk_enabled:
+        defaultValue: false
+        isOptional: true
+        parameterType: BOOLEAN
+      docling_chunk_max_tokens:
+        defaultValue: 512.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      docling_chunk_merge_peers:
+        defaultValue: true
+        isOptional: true
+        parameterType: BOOLEAN
+      docling_num_threads:
+        defaultValue: 4.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      docling_ocr:
+        defaultValue: true
+        isOptional: true
+        parameterType: BOOLEAN
+      docling_table_mode:
+        defaultValue: accurate
+        isOptional: true
+        parameterType: STRING
+      docling_timeout_per_document:
+        defaultValue: 300.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      num_splits:
+        defaultValue: 3.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      pdf_base_url:
+        defaultValue: https://github.com/docling-project/docling/raw/v2.43.0/tests/data/pdf
+        isOptional: true
+        parameterType: STRING
+      pdf_filenames:
+        defaultValue: 2203.01017v2.pdf
+        isOptional: true
+        parameterType: STRING
+      pdf_from_s3:
+        defaultValue: false
+        isOptional: true
+        parameterType: BOOLEAN
+      vlm_max_tokens:
+        defaultValue: 1024.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      vlm_timeout:
+        defaultValue: 120.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.14.6
+---
+platforms:
+  kubernetes:
+    deploymentSpec:
+      executors:
+        exec-import-pdfs:
+          secretAsVolume:
+          - mountPath: /mnt/secrets
+            optional: true
+            secretName: data-processing-docling-pipeline
+            secretNameParameter:
+              runtimeValue:
+                constant: data-processing-docling-pipeline
+        exec-interpret-policy-artifacts:
+          secretAsVolume:
+          - mountPath: /mnt/secrets
+            optional: false
+            secretName: data-processing-docling-pipeline
+            secretNameParameter:
+              runtimeValue:
+                constant: data-processing-docling-pipeline

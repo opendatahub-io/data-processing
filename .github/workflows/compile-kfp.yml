@@ -6,6 +6,7 @@ on:
     paths:
       - "kubeflow-pipelines/docling-standard/**"
       - "kubeflow-pipelines/docling-vlm/**"
+      - "kubeflow-pipelines/docling-vlm-policy/**"
       - "kubeflow-pipelines/common/**"
       - ".github/workflows/compile-kfp.yml"
   push:
@@ -13,6 +14,7 @@ on:
     paths:
       - "kubeflow-pipelines/docling-standard/**"
       - "kubeflow-pipelines/docling-vlm/**"
+      - "kubeflow-pipelines/docling-vlm-policy/**"
       - "kubeflow-pipelines/common/**"
       - ".github/workflows/compile-kfp.yml"
 permissions:
@@ -33,6 +35,10 @@ jobs:
             dir: kubeflow-pipelines/docling-vlm
             cmd: python vlm_convert_pipeline.py
             out: vlm_convert_pipeline_compiled.yaml
+          - name: docling-vlm-policy
+            dir: kubeflow-pipelines/docling-vlm-policy
+            cmd: python policy_convert_pipeline.py
+            out: policy_convert_pipeline_compiled.yaml
 
     steps:
       - name: Checkout
